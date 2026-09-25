@@ -153,7 +153,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 </aside>
 <div id="toast"></div>
 <div id="welcome" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="welcomeMsg"></p><div class="big" id="welcomeAmt"></div><div class="row"><button id="welcomeOk" class="on">收下金幣</button></div></div></div>
-<div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><textarea id="saveText" spellcheck="false" autocomplete="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
+<div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><textarea id="saveText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
 <div id="ask" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="askMsg"></p><div class="row"><button class="ghost" id="askNo">取消</button><button id="askYes">確定</button></div></div></div>
 
 <script>
@@ -1460,12 +1460,32 @@ function ask(msg, yes = '確定', no = '取消') {
   });
 }
 // ====== 匯出／匯入存檔 ======
-// 存檔碼 = 「AQ1:」加上存檔內容的 base64，可以整段複製到另一個網址或另一支手機貼上
-function saveCode() { save(); return 'AQ1:' + btoa(unescape(encodeURIComponent(JSON.stringify(state)))); }
+// 存檔碼格式：AQ2:<長度>:<base64>。記下長度，才能判斷是不是只複製到一部分
+// 匯出時會把沙地上還沒撿的寶物直接換成金幣、拿掉游動方向等暫時資料、數字四捨五入，讓存檔碼短一點比較好複製
+function saveCode() {
+  save();
+  const d = JSON.parse(JSON.stringify(state));
+  d.coins += d.treasures.reduce((a, t) => a + Math.round(TREASURE[t.type].value * (t.mult || 1) * B.value), 0);
+  d.treasures = [];
+  d.fish = d.fish.map(f => ({ id: f.id, sp: f.sp, name: f.name, x: f.x, y: f.y, hunger: f.hunger, growth: f.growth, foodMult: f.foodMult, dropT: f.dropT }));
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(d, (k, v) => typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 100) / 100 : v))));
+  return `AQ2:${b64.length}:${b64}`;
+}
+// 盡量容錯：忽略空白與看不見的字元、全形冒號、前後多餘的文字
 function parseCode(code) {
-  const m = String(code).replace(/\s+/g, '').match(/^AQ1:([A-Za-z0-9+/=]+)$/);
-  if (!m) return null;
-  try { const s = JSON.parse(decodeURIComponent(escape(atob(m[1])))); return s && typeof s.coins === 'number' && Array.isArray(s.fish) ? s : null; } catch (e) { return null; }
+  const t = String(code || '').replace(/[\s ​-‍﻿]+/g, '').replace(/：/g, ':');
+  if (!t) return { err: '還沒有貼上存檔碼。請長按輸入框，選「貼上」。' };
+  const m = t.match(/AQ([12]):(?:(\d+):)?([A-Za-z0-9+/=_-]*)/);
+  if (!m) return { err: '找不到存檔碼。請確認貼上的是「AQ」開頭的那一整串文字。' };
+  let b = m[3].replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+  const want = m[2] ? +m[2] : 0;
+  if (want && m[3].length < want) return { err: `存檔碼不完整，只複製到大約 ${Math.max(1, Math.floor(m[3].length / want * 100))}%。\n請回到原本的遊戲，按「📋 複製」重新複製一次。` };
+  while (b.length % 4) b += '=';
+  try {
+    const d = JSON.parse(decodeURIComponent(escape(atob(b))));
+    if (d && typeof d.coins === 'number' && Array.isArray(d.fish)) return { data: d };
+  } catch (e) { }
+  return { err: '存檔碼看起來有缺字或多了字，沒辦法讀取。\n請回到原本的遊戲，按「📋 複製」重新複製一次。' };
 }
 function openSaveBox(title, text, okLabel, onOk, readOnly) {
   const box = $('#saveBox'), ta = $('#saveText');
@@ -1474,22 +1494,33 @@ function openSaveBox(title, text, okLabel, onOk, readOnly) {
   $('#saveCancel').onclick = () => { box.hidden = true; };
   $('#saveOk').onclick = () => onOk(ta, () => { box.hidden = true; });
 }
+function selectAllText(ta) {
+  // iPhone 上唯讀的輸入框選不起來，先暫時解除唯讀再全選
+  ta.readOnly = false; ta.focus(); ta.setSelectionRange(0, ta.value.length); ta.select(); ta.readOnly = true;
+}
 function exportSave() {
-  openSaveBox('這是你的存檔碼。\n按「複製」後，到新網址或新手機的「📥 匯入存檔」貼上，就能接著玩。', saveCode(), '📋 複製', async ta => {
-    try { await navigator.clipboard.writeText(ta.value); toast('已複製存檔碼'); }
-    catch (e) { ta.focus(); ta.select(); toast('請長按上面的文字，選「全選」再「拷貝」'); }
+  const code = saveCode();
+  openSaveBox(`這是你的存檔碼（共 ${code.length} 個字）。\n按「📋 複製」後，到新的遊戲裡按「📥 匯入存檔」貼上，就能接著玩。`, code, '📋 複製', async ta => {
+    try { await navigator.clipboard.writeText(ta.value); toast('✅ 已複製存檔碼'); }
+    catch (e) { selectAllText(ta); toast('請在反白的文字上點「拷貝」'); }
   }, true);
 }
 function importSave() {
-  openSaveBox('把存檔碼貼在下面（長按空白處選「貼上」），再按「匯入」。\n⚠️ 目前這裡的進度會被取代。', '', '📥 匯入', async (ta, close) => {
-    const data = parseCode(ta.value);
-    if (!data) return toast('存檔碼不正確，請確認有整段複製');
+  const app = isAppMode();
+  openSaveBox(`把存檔碼貼在下面（長按空白處選「貼上」），再按「📥 匯入」。\n⚠️ 目前這裡的進度會被取代。${/iPhone|iPad|iPod/.test(navigator.userAgent) ? `\n\n📱 iPhone 小提醒：從主畫面圖示打開的遊戲，跟在 Safari 裡打開的遊戲，進度是分開存的。之後用哪一個玩，就要在哪一個裡面匯入。${app ? '（你現在是從主畫面圖示打開的）' : '（你現在是在 Safari 裡打開的）'}` : ''}`, '', '📥 匯入', async (ta, close) => {
+    const r = parseCode(ta.value);
+    if (r.err) return ask(r.err, '知道了', null);
+    const data = r.data;
     if (!await ask(`要匯入這份存檔嗎？\n💰 ${fmt(data.coins)}　⭐ ${fmt(data.stars || 0)}　🐟 ${data.fish.length} 隻\n\n目前的進度會被取代。`, '匯入')) return;
     close();
     data.lastSeen = Date.now();
     pellets = []; particles = []; texts = []; releasing = []; starFish = []; selFishId = null;
     load(JSON.stringify(data)); syncStarFish(); calcBonus(); buildBg(); save();
-    closeMenu(); updateFishCard(); updateModeLabel(); toast('匯入完成，歡迎回來！');
+    closeMenu(); updateFishCard(); updateModeLabel();
+    // 確認真的存得起來（無痕模式或關閉網站資料時會存不進去）
+    let ok = false; try { ok = JSON.parse(localStorage.getItem(SAVE_KEY)).coins === state.coins; } catch (e) { }
+    if (ok) toast('✅ 匯入完成，歡迎回來！');
+    else ask('匯入成功了，但這個瀏覽器沒辦法儲存進度（可能是無痕瀏覽，或關閉了網站資料）。\n關掉網頁後進度會消失，請改用一般模式的 Safari 或主畫面圖示打開再匯入一次。', '知道了', null);
   }, false);
 }
 async function resetGame() {
