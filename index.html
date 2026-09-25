@@ -240,7 +240,7 @@ function tierStats(k, price) {
   const pool = makePool(avg);
   return {
     dropEvery, pool, income, stars: Math.max(1, Math.round(Math.pow(1.27, k))), speed: Math.round(70 - 25 * q),
-    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(45 * Math.pow(1.33, k) / 5) * 5,
+    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(180 * Math.pow(1.3, k) / 10) * 10,
   };
 }
 SPECIES.forEach((s, k) => Object.assign(s, tierStats(k, s.price)));
@@ -1169,7 +1169,8 @@ function updateBreeding(dt) {
     const el = state.fish.filter(f => f.sp === sp.id && f.growth >= 1 && f.hunger >= 40);
     const pairs = Math.floor(el.length / 2);
     if (pairs < 1 || state.fish.length >= capacity()) continue;
-    state.breedT[sp.id] = (state.breedT[sp.id] || 0) + dt * Math.min(3, 1 + .3 * (pairs - 1)) * B.breed;
+    // 配對越多繁殖越快，但每多一對只加快 15%，最多 2 倍
+    state.breedT[sp.id] = (state.breedT[sp.id] || 0) + dt * Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
     if (state.breedT[sp.id] >= sp.breedTime) {
       state.breedT[sp.id] = 0;
       const a = pick(el); let b = pick(el); if (b === a) b = el.find(x => x !== a);
@@ -1656,7 +1657,7 @@ function coinNote(pool, every, mult) {
   const per = avgTreasure(pool) * mult;
   return `💰 每 ${every} 秒產出約 ${fmt(per)} 金幣（每分鐘約 ${fmt(per * 60 / every)}）`;
 }
-const fmtTime = sec => sec < 60 ? `${sec} 秒` : sec % 60 ? `${Math.floor(sec / 60)} 分 ${sec % 60} 秒` : `${sec / 60} 分鐘`;
+const fmtTime = sec => sec < 60 ? `${sec} 秒` : sec < 3600 ? (sec % 60 ? `${Math.floor(sec / 60)} 分 ${sec % 60} 秒` : `${sec / 60} 分鐘`) : `${Math.floor(sec / 3600)} 小時${Math.round(sec % 3600 / 60) ? ` ${Math.round(sec % 3600 / 60)} 分` : ''}`;
 function renderTab() {
   let h = '';
   if (tab === 'shop') {
