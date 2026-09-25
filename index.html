@@ -277,34 +277,34 @@ const FOODS = [
 ];
 const FD = Object.fromEntries(FOODS.map(f => [f.id, f]));
 
-// 10 種金幣背景（由便宜到貴，越貴寶物價值加成越高）＋ 1 種星星背景
+// 10 種金幣背景（由便宜到貴，越貴寶物價值加成越高，最貴約是中後期魚的價位）＋ 1 種星星背景
 const BGS = [
   { id: 'fresh',   name: '清澈淡水',   price: 0,       bonus: 0,    top: '#8ee3ff', bot: '#1a6fa8', sand: ['#f1dfae', '#d9bf82'], ray: .10 },
-  { id: 'reef',    name: '熱帶珊瑚礁', price: 500,     bonus: 0.05, top: '#5ff0e0', bot: '#0a7a9a', sand: ['#ffd9c9', '#e9ad92'], ray: .12 },
-  { id: 'kelp',    name: '巨藻森林',   price: 1500,    bonus: 0.08, top: '#7ad8b4', bot: '#0c4a44', sand: ['#d2c48e', '#9c8f5c'], ray: .13 },
-  { id: 'sunset',  name: '夕陽海灣',   price: 4000,    bonus: 0.12, top: '#ffb070', bot: '#4a2372', sand: ['#e7b98a', '#b98a5f'], ray: .09 },
-  { id: 'sakura',  name: '櫻花海灣',   price: 10000,   bonus: 0.16, top: '#ffcade', bot: '#6a3a7c', sand: ['#ffe6ee', '#e8b6c8'], ray: .1 },
-  { id: 'deep',    name: '深海秘境',   price: 25000,   bonus: 0.20, top: '#123a6b', bot: '#02070f', sand: ['#3a4658', '#222b38'], ray: .03 },
-  { id: 'arctic',  name: '冰洋極光',   price: 60000,   bonus: 0.25, top: '#d8f4ff', bot: '#1f5f8e', sand: ['#f4f8fc', '#c6d4e2'], ray: .1 },
-  { id: 'jelly',   name: '夜光水母',   price: 150000,  bonus: 0.30, top: '#2a1a5e', bot: '#07031a', sand: ['#40306a', '#261a44'], ray: .02 },
-  { id: 'volcano', name: '海底火山',   price: 400000,  bonus: 0.36, top: '#4e1c18', bot: '#120404', sand: ['#3c2c28', '#1e1412'], ray: .02 },
-  { id: 'palace',  name: '龍宮寶殿',   price: 1000000, bonus: 0.45, top: '#8a2436', bot: '#1c0612', sand: ['#e9c46a', '#b8892f'], ray: .08 },
+  { id: 'reef',    name: '熱帶珊瑚礁', price: 800,     bonus: 0.05, top: '#5ff0e0', bot: '#0a7a9a', sand: ['#ffd9c9', '#e9ad92'], ray: .12 },
+  { id: 'kelp',    name: '巨藻森林',   price: 3000,    bonus: 0.08, top: '#7ad8b4', bot: '#0c4a44', sand: ['#d2c48e', '#9c8f5c'], ray: .13 },
+  { id: 'sunset',  name: '夕陽海灣',   price: 10000,    bonus: 0.12, top: '#ffb070', bot: '#4a2372', sand: ['#e7b98a', '#b98a5f'], ray: .09 },
+  { id: 'sakura',  name: '櫻花海灣',   price: 35000,   bonus: 0.16, top: '#ffcade', bot: '#6a3a7c', sand: ['#ffe6ee', '#e8b6c8'], ray: .1 },
+  { id: 'deep',    name: '深海秘境',   price: 120000,   bonus: 0.20, top: '#123a6b', bot: '#02070f', sand: ['#3a4658', '#222b38'], ray: .03 },
+  { id: 'arctic',  name: '冰洋極光',   price: 400000,   bonus: 0.25, top: '#d8f4ff', bot: '#1f5f8e', sand: ['#f4f8fc', '#c6d4e2'], ray: .1 },
+  { id: 'jelly',   name: '夜光水母',   price: 1500000,  bonus: 0.30, top: '#2a1a5e', bot: '#07031a', sand: ['#40306a', '#261a44'], ray: .02 },
+  { id: 'volcano', name: '海底火山',   price: 5000000,  bonus: 0.36, top: '#4e1c18', bot: '#120404', sand: ['#3c2c28', '#1e1412'], ray: .02 },
+  { id: 'palace',  name: '龍宮寶殿',   price: 20000000, bonus: 0.45, top: '#8a2436', bot: '#1c0612', sand: ['#e9c46a', '#b8892f'], ray: .08 },
   { id: 'galaxy', name: '星河幻境',   starPrice: 80, bonus: 0.35, top: '#1b0b3a', bot: '#050214', sand: ['#4a3a80', '#1d1540'], ray: 0 },
 ];
 const BG = Object.fromEntries(BGS.map(b => [b.id, b]));
 
-// 10 種金幣擺飾（由便宜到貴）＋ 1 種星星擺飾；每種分 Lv1～Lv5，價格每級 ×3
+// 10 種金幣擺飾（由便宜到貴）＋ 1 種星星擺飾；每種分 Lv1～Lv5，價格每級 ×4
 const DECOR = [
-  { id: 'plant',    name: '水草',     icon: '🌿', base: 80,    eff: 'hunger',  per: 0.06, label: '飽食度消耗', sign: '-' },
-  { id: 'mushroom', name: '發光蘑菇', icon: '🍄', base: 150,   eff: 'growth',  per: 0.08, label: '成長速度',   sign: '+' },
-  { id: 'coral',    name: '珊瑚',     icon: '🪸', base: 250,   eff: 'value',   per: 0.08, label: '寶物價值',   sign: '+' },
-  { id: 'moai',     name: '摩艾石像', icon: '🗿', base: 500,   eff: 'growth',  per: 0.12, label: '成長速度',   sign: '+' },
-  { id: 'anchor',   name: '古船錨',   icon: '⚓', base: 900,   eff: 'offline', per: 0.12, label: '離線收益',   sign: '+' },
-  { id: 'castle',   name: '海底城堡', icon: '🏰', base: 1600,  eff: 'breed',   per: 0.12, label: '繁殖速度',   sign: '+' },
-  { id: 'ship',     name: '沉船',     icon: '🚢', base: 3000,  eff: 'drop',    per: 0.10, label: '產寶速度',   sign: '+' },
-  { id: 'temple',   name: '海底神殿', icon: '🏛️', base: 6000,  eff: 'drop',    per: 0.14, label: '產寶速度',   sign: '+' },
-  { id: 'fountain', name: '許願噴泉', icon: '⛲', base: 12000, eff: 'value',   per: 0.15, label: '寶物價值',   sign: '+' },
-  { id: 'torii',    name: '龍宮鳥居', icon: '⛩️', base: 25000, eff: 'all',     per: 0.05, label: '全部加成',   sign: '+' },
+  { id: 'plant',    name: '水草',     icon: '🌿', base: 100,    eff: 'hunger',  per: 0.06, label: '飽食度消耗', sign: '-' },
+  { id: 'mushroom', name: '發光蘑菇', icon: '🍄', base: 200,   eff: 'growth',  per: 0.08, label: '成長速度',   sign: '+' },
+  { id: 'coral',    name: '珊瑚',     icon: '🪸', base: 400,   eff: 'value',   per: 0.08, label: '寶物價值',   sign: '+' },
+  { id: 'moai',     name: '摩艾石像', icon: '🗿', base: 800,   eff: 'growth',  per: 0.12, label: '成長速度',   sign: '+' },
+  { id: 'anchor',   name: '古船錨',   icon: '⚓', base: 1500,   eff: 'offline', per: 0.12, label: '離線收益',   sign: '+' },
+  { id: 'castle',   name: '海底城堡', icon: '🏰', base: 3000,  eff: 'breed',   per: 0.12, label: '繁殖速度',   sign: '+' },
+  { id: 'ship',     name: '沉船',     icon: '🚢', base: 6000,  eff: 'drop',    per: 0.10, label: '產寶速度',   sign: '+' },
+  { id: 'temple',   name: '海底神殿', icon: '🏛️', base: 12000,  eff: 'drop',    per: 0.14, label: '產寶速度',   sign: '+' },
+  { id: 'fountain', name: '許願噴泉', icon: '⛲', base: 25000, eff: 'value',   per: 0.15, label: '寶物價值',   sign: '+' },
+  { id: 'torii',    name: '龍宮鳥居', icon: '⛩️', base: 50000, eff: 'all',     per: 0.05, label: '全部加成',   sign: '+' },
   { id: 'starcrystal', name: '星之水晶', icon: '💠', star: true, starPrices: [15, 35, 75, 150, 300], eff: 'all', per: 0.08, label: '全部加成', sign: '+' },
 ];
 const DC = Object.fromEntries(DECOR.map(d => [d.id, d]));
@@ -312,14 +312,15 @@ const TIERS = [
   { n: '普通', c: '#b0b8c4' }, { n: '精緻', c: '#4cd98b' }, { n: '稀有', c: '#4aa8ff' },
   { n: '史詩', c: '#b36bff' }, { n: '傳說', c: '#ffc940' },
 ];
-const decorPrice = (d, lv) => d.star ? d.starPrices[lv - 1] : Math.round(d.base * Math.pow(3, lv - 1));
+const decorPrice = (d, lv) => d.star ? d.starPrices[lv - 1] : Math.round(d.base * Math.pow(4, lv - 1));
 const curIcon = star => star ? '⭐' : '💰';
 const effText = (d, lv) => `${d.label} ${d.sign}${Math.round(d.per * lv * 100)}%`;
 
 const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 8;
-const capCost = lv => Math.round(150 * Math.pow(2.2, lv));
-const FEEDER_MAX = 5, feederCost = lv => 300 * Math.pow(3, lv), feederInterval = lv => 14 - 2 * lv;
-const SNAIL_MAX = 3, snailCost = lv => 800 * Math.pow(4, lv), snailSpeed = lv => 25 + 30 * lv;
+// 設備價格配合魚價稍微調高，但維持輕鬆：最貴的擴充約是中後期一隻魚的價格
+const capCost = lv => Math.round(200 * Math.pow(3.2, lv) / 10) * 10;
+const FEEDER_MAX = 5, feederCost = lv => 500 * Math.pow(4, lv), feederInterval = lv => 14 - 2 * lv;
+const SNAIL_MAX = 3, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
 const NAMES = ['小橘', '泡泡', '阿福', '圓圓', '小藍', '閃閃', '豆豆', '咕嚕', '皮皮', '點點', '糖糖', '米米', '旺財', '布丁', '湯圓', '麻糬', '小白', '阿金', '飯糰', '雪球', 'Nemo', 'Bubbles', 'Lucky'];
 
 // ====== 狀態 ======
