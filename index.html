@@ -94,6 +94,8 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 .modal .box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px 22px;max-width:380px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.5);max-height:100%;overflow:auto}
 .modal p{margin:0 0 16px;line-height:1.65;white-space:pre-line;font-size:18px}
 .modal .row{justify-content:flex-end}
+.bigLink{display:block;background:var(--accent);color:#2a1d00;font-weight:800;font-size:18px;text-align:center;text-decoration:none;padding:12px 14px;border-radius:12px;margin:0 0 14px}
+.bigLink small{display:block;font-weight:500;font-size:14px;margin-top:2px}
 .modal textarea{width:100%;min-height:96px;font:inherit;font-size:14px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:12px;word-break:break-all;resize:vertical}
 .modal .big{font-size:30px;font-weight:800;color:var(--accent);text-align:center;margin:4px 0 14px}
 #toast{position:fixed;left:50%;top:max(64px,calc(env(safe-area-inset-top) + 56px));transform:translateX(-50%);background:rgba(10,20,35,.95);border:1px solid var(--accent);color:var(--text);padding:10px 18px;font-size:17px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:calc(100% - 32px);text-align:center}
@@ -153,7 +155,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 </aside>
 <div id="toast"></div>
 <div id="welcome" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="welcomeMsg"></p><div class="big" id="welcomeAmt"></div><div class="row"><button id="welcomeOk" class="on">收下金幣</button></div></div></div>
-<div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><textarea id="saveText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
+<div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><a id="saveLink" class="bigLink" hidden target="_blank" rel="noopener">🔗 直接開啟新網站並帶入進度<small>最簡單，不用複製貼上</small></a><textarea id="saveText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
 <div id="ask" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="askMsg"></p><div class="row"><button class="ghost" id="askNo">取消</button><button id="askYes">確定</button></div></div></div>
 
 <script>
@@ -1489,7 +1491,7 @@ function parseCode(code) {
 }
 function openSaveBox(title, text, okLabel, onOk, readOnly) {
   const box = $('#saveBox'), ta = $('#saveText');
-  $('#saveTitle').textContent = title; ta.value = text; ta.readOnly = readOnly; $('#saveOk').textContent = okLabel;
+  $('#saveTitle').textContent = title; ta.value = text; ta.readOnly = readOnly; $('#saveOk').textContent = okLabel; $('#saveLink').hidden = true;
   box.hidden = false; if (!readOnly) ta.focus();
   $('#saveCancel').onclick = () => { box.hidden = true; };
   $('#saveOk').onclick = () => onOk(ta, () => { box.hidden = true; });
@@ -1498,19 +1500,29 @@ function selectAllText(ta) {
   // iPhone 上唯讀的輸入框選不起來，先暫時解除唯讀再全選
   ta.readOnly = false; ta.focus(); ta.setSelectionRange(0, ta.value.length); ta.select(); ta.readOnly = true;
 }
+const NEW_SITE = 'https://hn84786349.github.io/aquarium/';
+const onNewSite = () => location.hostname === 'hn84786349.github.io';
 function exportSave() {
   const code = saveCode();
-  openSaveBox(`這是你的存檔碼（共 ${code.length} 個字）。\n按「📋 複製」後，到新的遊戲裡按「📥 匯入存檔」貼上，就能接著玩。`, code, '📋 複製', async ta => {
+  openSaveBox(onNewSite()
+    ? `這是你的存檔碼（共 ${code.length} 個字）。\n按「📋 複製」後，到另一支手機或另一個地方的「📥 匯入存檔」貼上，就能接著玩。`
+    : `搬到新網站：直接按下面的黃色按鈕，新網站會自動帶入進度。\n\n或是按「📋 複製」存檔碼（共 ${code.length} 個字），到新網站的「📥 匯入存檔」貼上。`, code, '📋 複製', async ta => {
+    selectAllText(ta);
     try { await navigator.clipboard.writeText(ta.value); toast('✅ 已複製存檔碼'); }
-    catch (e) { selectAllText(ta); toast('請在反白的文字上點「拷貝」'); }
+    catch (e) { toast('請在反白的文字上點「拷貝」'); }
   }, true);
+  // 不在新網站時，提供把存檔放在網址裡直接帶過去的連結（避開 iPhone 在內嵌網頁裡剪貼簿不能用的問題）
+  if (!onNewSite()) { const a = $('#saveLink'); a.href = NEW_SITE + '#import=' + code; a.hidden = false; }
 }
 function importSave() {
   const app = isAppMode();
   openSaveBox(`把存檔碼貼在下面（長按空白處選「貼上」），再按「📥 匯入」。\n⚠️ 目前這裡的進度會被取代。${/iPhone|iPad|iPod/.test(navigator.userAgent) ? `\n\n📱 iPhone 小提醒：從主畫面圖示打開的遊戲，跟在 Safari 裡打開的遊戲，進度是分開存的。之後用哪一個玩，就要在哪一個裡面匯入。${app ? '（你現在是從主畫面圖示打開的）' : '（你現在是在 Safari 裡打開的）'}` : ''}`, '', '📥 匯入', async (ta, close) => {
     const r = parseCode(ta.value);
     if (r.err) return ask(r.err, '知道了', null);
-    const data = r.data;
+    applyImport(r.data, close);
+  }, false);
+}
+async function applyImport(data, close = () => { }) {
     if (!await ask(`要匯入這份存檔嗎？\n💰 ${fmt(data.coins)}　⭐ ${fmt(data.stars || 0)}　🐟 ${data.fish.length} 隻\n\n目前的進度會被取代。`, '匯入')) return;
     close();
     data.lastSeen = Date.now();
@@ -1521,7 +1533,16 @@ function importSave() {
     let ok = false; try { ok = JSON.parse(localStorage.getItem(SAVE_KEY)).coins === state.coins; } catch (e) { }
     if (ok) toast('✅ 匯入完成，歡迎回來！');
     else ask('匯入成功了，但這個瀏覽器沒辦法儲存進度（可能是無痕瀏覽，或關閉了網站資料）。\n關掉網頁後進度會消失，請改用一般模式的 Safari 或主畫面圖示打開再匯入一次。', '知道了', null);
-  }, false);
+}
+// 從舊網址的連結打開時，網址後面會帶著「#import=存檔碼」，自動詢問要不要匯入
+function importFromLink() {
+  const i = location.hash.indexOf('import=');
+  if (i < 0) return;
+  const code = decodeURIComponent(location.hash.slice(i + 7));
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { }
+  const r = parseCode(code);
+  if (r.err) return ask('帶過來的進度讀不到：\n' + r.err, '知道了', null);
+  applyImport(r.data);
 }
 async function resetGame() {
   if (!await ask('確定要重新開始嗎？\n所有進度都會消失！', '重新開始')) return;
@@ -1971,7 +1992,7 @@ for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListen
 load(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
-updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save();
+updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
 window.addEventListener('beforeunload', save);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else checkOffline(); });
 requestAnimationFrame(frame);
