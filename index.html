@@ -85,10 +85,15 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 .bar i{display:block;height:100%;background:var(--good)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .fishrow>span{flex-basis:100%!important}
-.slots{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:10px}
-.slot{aspect-ratio:1;font-size:26px;padding:0;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--panel2);border:2px solid var(--border);line-height:1.1}
-.slot small{font-size:12px;color:var(--muted)}
-.slot.sel{border-color:var(--accent)}
+/* 造景卡片：上面是預覽與說明，下面是外觀選擇與升級按鈕 */
+.card.scene{flex-direction:column;align-items:stretch}
+.card.scene .top{flex-wrap:nowrap;align-items:center}
+.card.scene .bottom{justify-content:space-between}
+.card img.thumb{width:112px;height:67px;border-radius:8px;border:1px solid var(--border)}
+.looks{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.looks span{font-size:14px;color:var(--muted);margin-right:2px}
+button.chip{min-height:38px;min-width:38px;padding:4px 8px;font-size:15px;background:var(--panel);border:1px solid var(--border)}
+button.chip.on{background:var(--accent);color:#2a1d00;font-weight:700;border-color:var(--accent)}
 select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:6px;min-height:38px}
 .bonus{font-size:14px;color:var(--muted);background:var(--panel2);border-radius:10px;padding:10px;line-height:1.75}
 .bonus b{color:var(--good)}
@@ -115,6 +120,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
   #menu{width:min(420px,100vw)}
   .card{padding:8px;gap:8px}
   .card img{width:66px;height:40px}
+  .card img.thumb{width:96px;height:57px}
   .ico{font-size:26px;width:38px}
   .card button,.card select{font-size:15px;padding:6px 9px;min-height:40px}
   nav button{font-size:15px;padding:8px 1px}
@@ -152,7 +158,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
   <nav id="tabs">
     <button data-tab="shop" class="on">魚店</button>
     <button data-tab="food">飼料</button>
-    <button data-tab="decor">擺飾</button>
+    <button data-tab="decor">造景</button>
     <button data-tab="bg">背景</button>
     <button data-tab="mine">我的魚</button>
     <button data-tab="star">⭐星願</button>
@@ -169,10 +175,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 // ====== 基本常數 ======
 // 水族箱高度固定 620，寬度依螢幕比例調整，讓畫面剛好填滿螢幕
 let W = 1000;
-const H = 620, FLOOR = 555, TOP = 55, SLOT_Y = 598;
-let SLOT_X = [];
-const layoutSlots = () => { SLOT_X = [0, 1, 2, 3, 4, 5].map(i => Math.round(W * (.1 + .16 * i))); };
-layoutSlots();
+const H = 620, FLOOR = 555, TOP = 55;
 const SAVE_KEY = 'aquarium-save-v1';
 // 在畫布上畫表情符號。一定要先把填色設回實心顏色：iPhone 的 Safari 會用當下的填色（例如金色光暈的漸層）
 // 去填滿表情符號，結果只看到一團光、看不到圖案
@@ -183,7 +186,12 @@ const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans
 const $ = s => document.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const fmt = n => Math.floor(n).toLocaleString('zh-TW');
+// 大數字改用「億」「兆」表示，比較好讀（例如 3.8億）
+const fmt = n => {
+  n = Math.floor(n); if (n < 1e8) return n.toLocaleString('zh-TW');
+  const [d, u] = n < 1e12 ? [1e8, '億'] : [1e12, '兆'], v = n / d;
+  return (v < 100 ? +v.toFixed(2) : v < 1000 ? +v.toFixed(1) : Math.floor(v).toLocaleString('zh-TW')) + u;
+};
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 function weighted(pool) { let t = pool.reduce((s, p) => s + p[1], 0), r = Math.random() * t; for (const p of pool) { if ((r -= p[1]) <= 0) return p[0]; } return pool[0][0]; }
 
@@ -202,73 +210,102 @@ const TREASURE = {
   key:     { icon: '🗝️', name: '黃金鑰匙', value: 20000 },
   trident: { icon: '🔱', name: '海神三叉戟', value: 60000 },
   orb:     { icon: '🔮', name: '龍宮寶珠', value: 150000 },
+  starstone: { icon: '🌟', name: '星辰寶石', value: 400000 },
+  heart:   { icon: '💖', name: '海洋之心', value: 1000000 },
 };
+const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
 
-// 20 種魚，前期每級約 2.1 倍，越後面漲越多（最後約 3.3 倍）；寶物、成長、繁殖、放生星星等數值由 tierStats 自動計算
+// 用 MODELS 裡的設定畫魚
+function mdl(id) { return (c, s, w, e, f) => drawModel(c, s, w, e, f, MODELS[id]); }
+// 40 種魚（包含海龜、海豚、鯨魚等海洋生物），越後面越華麗夢幻；價格、產值、成長、繁殖等數值由 tierStats 自動計算
 const SPECIES = [
-  { id: 'guppy',      name: '孔雀魚',       price: 20,    size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
-  { id: 'neon',       name: '霓虹燈魚',     price: 42,    size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
-  { id: 'clown',      name: '小丑魚',       price: 89,   size: 24, desc: '活潑可愛的人氣王', draw: drawClown },
-  { id: 'blueclown',  name: '藍色小丑魚',   price: 190,   size: 24, desc: '少見的藍色小丑魚', draw: draw_blueclown },
-  { id: 'jewel',      name: '寶石魔',       price: 410,   size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
-  { id: 'dottyback',  name: '蘭花擬雀鯛',   price: 910,   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
-  { id: 'snowclown',  name: '雪花小丑魚',   price: 2000,   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
-  { id: 'clowntang',  name: '紋刺尾魚',     price: 4700,  size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
-  { id: 'angel',      name: '神仙魚',       price: 11000,  size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
-  { id: 'peppermint', name: '紅薄荷神仙魚', price: 27000,  size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
-  { id: 'bluetang',   name: '藍倒吊',       price: 68000,  size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
-  { id: 'betta',      name: '鬥魚',         price: 170000,  size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
-  { id: 'parrot',     name: '鸚哥魚',       price: 460000,  size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
-  { id: 'grouper',    name: '豹石斑',       price: 1300000,  size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
-  { id: 'moorish',    name: '鐮魚',         price: 3500000, size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
-  { id: 'french',     name: '法國神仙魚',   price: 10000000, size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
-  { id: 'queen',      name: '紫后神仙魚',   price: 31000000, size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
-  { id: 'arowana',    name: '金龍魚',       price: 95000000, size: 34, desc: '招財納福的風水魚', draw: drawArowana },
-  { id: 'mahi',       name: '鬼頭刀',       price: 300000000, size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
-  { id: 'koi',        name: '錦鯉',         price: 1000000000, size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
+  { id: 'guppy',      name: '孔雀魚',       size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
+  { id: 'neon',       name: '霓虹燈魚',     size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
+  { id: 'goldfish',   name: '琉金',         size: 22, desc: '圓滾滾的身體配上飄逸大尾巴', draw: mdl('goldfish') },
+  { id: 'clown',      name: '小丑魚',       size: 24, desc: '活潑可愛的人氣王', draw: drawClown },
+  { id: 'puffer',     name: '河豚',         size: 20, desc: '緊張時會鼓成一顆刺刺球', draw: mdl('puffer') },
+  { id: 'blueclown',  name: '藍色小丑魚',   size: 24, desc: '少見的藍色小丑魚', draw: draw_blueclown },
+  { id: 'jewel',      name: '寶石魔',       size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
+  { id: 'boxfish',    name: '黃金箱魨',     size: 19, desc: '方方正正的黃色小盒子', draw: mdl('boxfish') },
+  { id: 'dottyback',  name: '蘭花擬雀鯛',   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
+  { id: 'butterfly',  name: '月眉蝶',       size: 22, desc: '戴著黑色眼罩的黃色蝴蝶魚', draw: mdl('butterfly') },
+  { id: 'snowclown',  name: '雪花小丑魚',   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
+  { id: 'clowntang',  name: '紋刺尾魚',     size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
+  { id: 'seahorse',   name: '海馬',         size: 24, desc: '直立著慢慢游的海中小馬', draw: drawSeahorse },
+  { id: 'angel',      name: '神仙魚',       size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
+  { id: 'mandarin',   name: '青蛙魚',       size: 21, desc: '全身布滿迷幻的彩色花紋', draw: mdl('mandarin') },
+  { id: 'peppermint', name: '紅薄荷神仙魚', size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
+  { id: 'emperor',    name: '皇帝神仙魚',   size: 28, desc: '藍底黃線，神仙魚中的皇帝', draw: mdl('emperor') },
+  { id: 'bluetang',   name: '藍倒吊',       size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
+  { id: 'lionfish',   name: '獅子魚',       size: 28, desc: '張開華麗的羽毛狀魚鰭', draw: mdl('lionfish') },
+  { id: 'betta',      name: '鬥魚',         size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
+  { id: 'turtle',     name: '海龜',         size: 34, desc: '慢慢划水的長壽象徵', draw: drawTurtle },
+  { id: 'parrot',     name: '鸚哥魚',       size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
+  { id: 'grouper',    name: '豹石斑',       size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
+  { id: 'sunfish',    name: '翻車魚',       size: 32, desc: '圓圓扁扁、呆萌的大魚', draw: mdl('sunfish') },
+  { id: 'moorish',    name: '鐮魚',         size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
+  { id: 'french',     name: '法國神仙魚',   size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
+  { id: 'seaangel',   name: '海天使',       size: 32, desc: '透明身體裡有一顆發光的心', draw: drawSeaAngel },
+  { id: 'queen',      name: '紫后神仙魚',   size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
+  { id: 'dolphin',    name: '海豚',         size: 34, desc: '聰明又愛笑的海洋精靈', draw: mdl('dolphin') },
+  { id: 'arowana',    name: '金龍魚',       size: 34, desc: '招財納福的風水魚', draw: drawArowana },
+  { id: 'sailfish',   name: '旗魚',         size: 32, desc: '背上揚起一面藍色大帆', draw: mdl('sailfish') },
+  { id: 'mahi',       name: '鬼頭刀',       size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
+  { id: 'koi',        name: '錦鯉',         size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
+  { id: 'orca',       name: '虎鯨',         size: 38, desc: '黑白分明的海洋霸主', draw: mdl('orca') },
+  { id: 'whaleshark', name: '鯨鯊',         size: 40, desc: '溫柔的巨人，身上滿是星點', draw: mdl('whaleshark') },
+  { id: 'oarfish',    name: '皇帶魚',       size: 30, desc: '傳說中的銀色海龍', draw: drawOarfish },
+  { id: 'humpback',   name: '座頭鯨',       size: 40, desc: '會唱歌的大鯨魚', draw: mdl('humpback') },
+  { id: 'fairybetta', name: '仙羽鬥魚',     size: 32, desc: '如仙女羽衣般的夢幻長鰭', draw: mdl('fairybetta') },
+  { id: 'narwhal',    name: '星光獨角鯨',   size: 38, desc: '頭上閃耀著星光長角', draw: mdl('narwhal') },
+  { id: 'aurorawhale', name: '極光鯨',      size: 42, desc: '身上流動著極光的神話之鯨', draw: mdl('aurorawhale') },
 ];
 // 依「平均每次想產出的價值」組出寶物組合：主要兩種相鄰的寶物，再加 6% 機率的更高級寶物
 function makePool(avg) {
-  const TV = ['bubble', 'coin', 'shell', 'pearl', 'crystal', 'crown', 'diamond', 'vase', 'gold', 'relic', 'key', 'trident', 'orb'];
+  const TV = ['bubble', 'coin', 'shell', 'pearl', 'crystal', 'crown', 'diamond', 'vase', 'gold', 'relic', 'key', 'trident', 'orb', 'starstone', 'heart'];
   let i = 0; while (i < TV.length - 2 && TREASURE[TV[i + 1]].value < avg) i++;
   const lo = TREASURE[TV[i]].value, hi = TREASURE[TV[i + 1]].value, wHi = clamp(Math.round((avg - lo) / (hi - lo) * 94), 5, 88);
   const pool = [[TV[i], 94 - wHi], [TV[i + 1], wHi]];
   if (i + 2 < TV.length) pool.push([TV[i + 2], 6]); else pool[1][1] += 6;
   return pool;
 }
-// 每一階的目標每秒產值（和價格分開設定：價格可以更陡，產值維持原本的成長速度）
-const TIER_INCOME = [0.33, 0.5, 0.76, 1.15, 1.78, 2.82, 4.43, 7.11, 11.29, 18.55, 30.54, 49.39, 85.25, 142.79, 239.98, 417.82, 734.63, 1257.19, 2264.5, 4183.19];
-function tierStats(k, price) {
-  const q = k / (SPECIES.length - 1);
-  const dropEvery = Math.round(8 + 9 * q);
-  // 回本時間從約 1 分鐘逐級拉長到約 66 小時（不含繁殖），後期要慢慢存
-  const income = TIER_INCOME[k], avg = income * dropEvery;
-  const pool = makePool(avg);
+// 價格取兩位有效數字，看起來比較整齊
+const nice = n => { const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; };
+// 每一階：產值每階成長 ×1.38（前期）→ ×1.7（後期），回本時間從 1.5 分鐘慢慢拉長到約 60 小時；
+// 越後面的魚產值跳得越多，買到第一隻後，第二隻會比較快買到
+// 模擬結果：前期每 1～2 分鐘就能買下一種，中期約 10～30 分鐘，最後幾種約 4～6 小時（實際遊玩約一兩天）
+function tierStats(k) {
+  const n = SPECIES.length - 1, q = k / n;
+  let income = .33; for (let i = 1; i <= k; i++) income *= 1.38 + .32 * (i / n) ** 2;
+  const price = k ? nice(income * 90 * Math.pow(216000 / 90, Math.pow(q, 1.3))) : 20;
+  const dropEvery = Math.round(8 + 9 * q), avg = income * dropEvery, pool = makePool(avg);
   return {
-    dropEvery, pool, income, stars: Math.max(1, Math.round(Math.pow(1.27, k))), speed: Math.round(70 - 25 * q),
-    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(180 * Math.pow(1.3, k) / 10) * 10,
+    price, income, dropEvery, pool, mult: avg / avgTreasure(pool),
+    // 放生得到的星星：跟價格掛鉤（孔雀魚 1 顆，最貴的魚約 400 顆）
+    stars: Math.max(1, Math.round(Math.pow(price / 20, .256))), speed: Math.round(70 - 25 * q),
+    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(10, q) / 10) * 10,
+    // 繁殖時間：3 分鐘 → 最高級約 6 小時
+    breedTime: Math.round(180 * Math.pow(120, q) / 10) * 10,
   };
 }
-SPECIES.forEach((s, k) => Object.assign(s, tierStats(k, s.price)));
+SPECIES.forEach((s, k) => Object.assign(s, tierStats(k), { tier: k }));
 const SP = Object.fromEntries(SPECIES.map(s => [s.id, s]));
 
-// 星願夢幻魚：用星星兌換，每種只能有一隻，水族箱最多展示 3 隻
 // 星願夢幻生物：用星星兌換，每種只能有一隻，水族箱最多展示 3 隻
-// income：目標每秒產值（基本值，不含擺飾與背景加成）；寶物價值倍率 valueMult 另外乘上
+// income：目標每秒產值（基本值，不含造景與背景加成）；寶物價值倍率 valueMult 另外乘上
 const STARFISH = [
-  { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 20,   desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
-  { id: 'rainbow', name: '彩虹天使', cost: 60,   size: 26, speed: 55, dropEvery: 12, valueMult: 1.35, income: 45,  desc: '身上的顏色不停流轉', draw: drawRainbow },
-  { id: 'crystal', name: '水晶魚',   cost: 100,  size: 26, speed: 50, dropEvery: 12, valueMult: 1.4,  income: 90,  desc: '透明閃耀的晶體身軀', draw: drawCrystal },
-  { id: 'leafy',   name: '葉形海龍', cost: 150,  size: 34, speed: 35, dropEvery: 13, valueMult: 1.45, income: 170,  desc: '身上長滿隨水搖曳的葉子', draw: drawLeafy },
-  { id: 'galaxy',  name: '星河魚',   cost: 220,  size: 28, speed: 50, dropEvery: 13, valueMult: 1.45, income: 300,  desc: '身體裡藏著一整片星空', draw: drawGalaxy },
-  { id: 'jelly',   name: '夜光水母', cost: 300,  size: 36, speed: 28, dropEvery: 14, valueMult: 1.5,  income: 500, desc: '一縮一放、發出柔和的光', draw: drawJelly },
-  { id: 'dragon',  name: '青龍',     cost: 420,  size: 26, speed: 60, dropEvery: 14, valueMult: 1.55, income: 850, desc: '傳說中守護海洋的神龍', draw: drawDragon },
-  { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 1400, desc: '張開大翅膀在水中飛翔', draw: drawManta },
-  { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 2300, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
-  { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 3800, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
+  { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 30,     desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
+  { id: 'rainbow', name: '彩虹天使', cost: 60,   size: 26, speed: 55, dropEvery: 12, valueMult: 1.35, income: 120,    desc: '身上的顏色不停流轉', draw: drawRainbow },
+  { id: 'crystal', name: '水晶魚',   cost: 100,  size: 26, speed: 50, dropEvery: 12, valueMult: 1.4,  income: 400,    desc: '透明閃耀的晶體身軀', draw: drawCrystal },
+  { id: 'leafy',   name: '葉形海龍', cost: 150,  size: 34, speed: 35, dropEvery: 13, valueMult: 1.45, income: 1200,   desc: '身上長滿隨水搖曳的葉子', draw: drawLeafy },
+  { id: 'galaxy',  name: '星河魚',   cost: 220,  size: 28, speed: 50, dropEvery: 13, valueMult: 1.45, income: 4000,   desc: '身體裡藏著一整片星空', draw: drawGalaxy },
+  { id: 'jelly',   name: '夜光水母', cost: 300,  size: 36, speed: 28, dropEvery: 14, valueMult: 1.5,  income: 12000,  desc: '一縮一放、發出柔和的光', draw: drawJelly },
+  { id: 'dragon',  name: '青龍',     cost: 420,  size: 26, speed: 60, dropEvery: 14, valueMult: 1.55, income: 35000,  desc: '傳說中守護海洋的神龍', draw: drawDragon },
+  { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 100000, desc: '張開大翅膀在水中飛翔', draw: drawManta },
+  { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 300000, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
+  { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 800000, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
 ];
-STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); });
-STARFISH.forEach(s => s.star = true);
+STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); s.mult = s.income * s.dropEvery / avgTreasure(s.pool); s.star = true; });
 const SSP = Object.fromEntries(STARFISH.map(s => [s.id, s]));
 const getSp = id => SP[id] || SSP[id];
 const MAX_SHOWN = 3;
@@ -281,44 +318,560 @@ const FOODS = [
 ];
 const FD = Object.fromEntries(FOODS.map(f => [f.id, f]));
 
-// 10 種金幣背景（由便宜到貴，越貴寶物價值加成越高，最貴約是中後期魚的價位）＋ 1 種星星背景
+// 10 種金幣背景（由便宜到貴，越貴寶物價值加成越高；價格配合 40 種魚的進度拉長）＋ 1 種星星背景
 const BGS = [
   { id: 'fresh',   name: '清澈淡水',   price: 0,       bonus: 0,    top: '#8ee3ff', bot: '#1a6fa8', sand: ['#f1dfae', '#d9bf82'], ray: .10 },
-  { id: 'reef',    name: '熱帶珊瑚礁', price: 800,     bonus: 0.05, top: '#5ff0e0', bot: '#0a7a9a', sand: ['#ffd9c9', '#e9ad92'], ray: .12 },
-  { id: 'kelp',    name: '巨藻森林',   price: 3000,    bonus: 0.08, top: '#7ad8b4', bot: '#0c4a44', sand: ['#d2c48e', '#9c8f5c'], ray: .13 },
-  { id: 'sunset',  name: '夕陽海灣',   price: 10000,    bonus: 0.12, top: '#ffb070', bot: '#4a2372', sand: ['#e7b98a', '#b98a5f'], ray: .09 },
-  { id: 'sakura',  name: '櫻花海灣',   price: 35000,   bonus: 0.16, top: '#ffcade', bot: '#6a3a7c', sand: ['#ffe6ee', '#e8b6c8'], ray: .1 },
-  { id: 'deep',    name: '深海秘境',   price: 120000,   bonus: 0.20, top: '#123a6b', bot: '#02070f', sand: ['#3a4658', '#222b38'], ray: .03 },
-  { id: 'arctic',  name: '冰洋極光',   price: 400000,   bonus: 0.25, top: '#d8f4ff', bot: '#1f5f8e', sand: ['#f4f8fc', '#c6d4e2'], ray: .1 },
-  { id: 'jelly',   name: '夜光水母',   price: 1500000,  bonus: 0.30, top: '#2a1a5e', bot: '#07031a', sand: ['#40306a', '#261a44'], ray: .02 },
-  { id: 'volcano', name: '海底火山',   price: 5000000,  bonus: 0.36, top: '#4e1c18', bot: '#120404', sand: ['#3c2c28', '#1e1412'], ray: .02 },
-  { id: 'palace',  name: '龍宮寶殿',   price: 20000000, bonus: 0.45, top: '#8a2436', bot: '#1c0612', sand: ['#e9c46a', '#b8892f'], ray: .08 },
+  { id: 'reef',    name: '熱帶珊瑚礁', price: 1000,     bonus: 0.05, top: '#5ff0e0', bot: '#0a7a9a', sand: ['#ffd9c9', '#e9ad92'], ray: .12 },
+  { id: 'kelp',    name: '巨藻森林',   price: 8000,    bonus: 0.08, top: '#7ad8b4', bot: '#0c4a44', sand: ['#d2c48e', '#9c8f5c'], ray: .13 },
+  { id: 'sunset',  name: '夕陽海灣',   price: 50000,    bonus: 0.12, top: '#ffb070', bot: '#4a2372', sand: ['#e7b98a', '#b98a5f'], ray: .09 },
+  { id: 'sakura',  name: '櫻花海灣',   price: 300000,   bonus: 0.16, top: '#ffcade', bot: '#6a3a7c', sand: ['#ffe6ee', '#e8b6c8'], ray: .1 },
+  { id: 'deep',    name: '深海秘境',   price: 2000000,   bonus: 0.20, top: '#123a6b', bot: '#02070f', sand: ['#3a4658', '#222b38'], ray: .03 },
+  { id: 'arctic',  name: '冰洋極光',   price: 15000000,   bonus: 0.25, top: '#d8f4ff', bot: '#1f5f8e', sand: ['#f4f8fc', '#c6d4e2'], ray: .1 },
+  { id: 'jelly',   name: '夜光水母',   price: 100000000,  bonus: 0.30, top: '#2a1a5e', bot: '#07031a', sand: ['#40306a', '#261a44'], ray: .02 },
+  { id: 'volcano', name: '海底火山',   price: 800000000,  bonus: 0.36, top: '#4e1c18', bot: '#120404', sand: ['#3c2c28', '#1e1412'], ray: .02 },
+  { id: 'palace',  name: '龍宮寶殿',   price: 6000000000, bonus: 0.45, top: '#8a2436', bot: '#1c0612', sand: ['#e9c46a', '#b8892f'], ray: .08 },
   { id: 'galaxy', name: '星河幻境',   starPrice: 80, bonus: 0.35, top: '#1b0b3a', bot: '#050214', sand: ['#4a3a80', '#1d1540'], ray: 0 },
 ];
 const BG = Object.fromEntries(BGS.map(b => [b.id, b]));
 
-// 10 種金幣擺飾（由便宜到貴）＋ 1 種星星擺飾；每種分 Lv1～Lv5，價格每級 ×4
-const DECOR = [
-  { id: 'plant',    name: '水草',     icon: '🌿', base: 100,    eff: 'hunger',  per: 0.06, label: '飽食度消耗', sign: '-' },
-  { id: 'mushroom', name: '發光蘑菇', icon: '🍄', base: 200,   eff: 'growth',  per: 0.08, label: '成長速度',   sign: '+' },
-  { id: 'coral',    name: '珊瑚',     icon: '🪸', base: 400,   eff: 'value',   per: 0.08, label: '寶物價值',   sign: '+' },
-  { id: 'moai',     name: '摩艾石像', icon: '🗿', base: 800,   eff: 'growth',  per: 0.12, label: '成長速度',   sign: '+' },
-  { id: 'anchor',   name: '古船錨',   icon: '⚓', base: 1500,   eff: 'offline', per: 0.12, label: '離線收益',   sign: '+' },
-  { id: 'castle',   name: '海底城堡', icon: '🏰', base: 3000,  eff: 'breed',   per: 0.12, label: '繁殖速度',   sign: '+' },
-  { id: 'ship',     name: '沉船',     icon: '🚢', base: 6000,  eff: 'drop',    per: 0.10, label: '產寶速度',   sign: '+' },
-  { id: 'temple',   name: '海底神殿', icon: '🏛️', base: 12000,  eff: 'drop',    per: 0.14, label: '產寶速度',   sign: '+' },
-  { id: 'fountain', name: '許願噴泉', icon: '⛲', base: 25000, eff: 'value',   per: 0.15, label: '寶物價值',   sign: '+' },
-  { id: 'torii',    name: '龍宮鳥居', icon: '⛩️', base: 50000, eff: 'all',     per: 0.05, label: '全部加成',   sign: '+' },
-  { id: 'starcrystal', name: '星之水晶', icon: '💠', star: true, starPrices: [15, 35, 75, 150, 300], eff: 'all', per: 0.08, label: '全部加成', sign: '+' },
+// ====== 造景：固定位置的部件，每個部件有 5 級外觀 ======
+// 功能永遠取「已升級到的最高等級」，外觀可以自己選喜歡的等級（也可以先隱藏）
+// layer 0 = 後排（比較遠、稍微霧化）、1 = 前排；x 是在水族箱寬度的位置比例，y 是底部站在哪裡
+const SCENE = [
+  { id: 'castle',   name: '海底城堡', icon: '🏰', layer: 0, x: .10, y: FLOOR + 8,  eff: 'breed',   label: '繁殖速度',   sign: '+', per: [.10, .22, .36, .55, .80], base: 30000,   mul: 9,
+    lv: ['石牆遺跡', '小塔樓', '海底城堡', '童話城堡', '水晶宮殿'], box: [[40, 46], [42, 96], [56, 106], [52, 150], [56, 172]] },
+  { id: 'arch',     name: '古代拱門', icon: '🏛️', layer: 0, x: .47, y: FLOOR + 6,  eff: 'all',     label: '全部加成',   sign: '+', per: [.03, .07, .12, .18, .25], base: 1000000, mul: 12,
+    lv: ['岩石拱門', '青苔拱門', '古代石門', '海神神殿', '龍宮牌樓'], box: [[48, 64], [54, 82], [54, 96], [62, 122], [68, 150]] },
+  { id: 'ship',     name: '沉船',     icon: '⚓', layer: 0, x: .81, y: FLOOR + 12, eff: 'offline', label: '離線收益',   sign: '+', per: [.15, .35, .60, .90, 1.30], base: 150000, mul: 10,
+    lv: ['破木舟', '小帆船殘骸', '古帆船', '寶藏沉船', '幽靈海盜船'], box: [[36, 30], [44, 70], [66, 110], [70, 110], [80, 124]] },
+  { id: 'coral',    name: '珊瑚礁',   icon: '🪸', layer: 1, x: .22, y: H - 24,     eff: 'value',   label: '寶物價值',   sign: '+', per: [.08, .17, .28, .40, .55], base: 400,     mul: 6,
+    lv: ['小珊瑚', '珊瑚叢', '彩色珊瑚礁', '繁茂珊瑚礁', '虹彩珊瑚礁'], box: [[34, 52], [44, 64], [56, 72], [66, 84], [66, 88]] },
+  { id: 'starfish', name: '海星沙灘', icon: '🐚', layer: 1, x: .43, y: H - 16, k: 1.55,     eff: 'hunger',  label: '飽食度消耗', sign: '-', per: [.08, .16, .25, .35, .45], base: 150,     mul: 5,
+    lv: ['一隻海星', '海星與貝殼', '海星家族', '貝殼海灘', '黃金海星'], box: [[22, 20], [36, 22], [40, 24], [54, 26], [56, 30]] },
+  { id: 'clam',     name: '硨磲貝',   icon: '🦪', layer: 1, x: .62, y: H - 20, k: 1.2,     eff: 'drop',    label: '產寶速度',   sign: '+', per: [.06, .13, .21, .30, .42], base: 6000,    mul: 8,
+    lv: ['小蛤蜊', '珍珠貝', '大硨磲貝', '雙寶硨磲', '虹彩寶珠貝'], box: [[26, 26], [30, 32], [38, 44], [52, 46], [56, 54]] },
+  { id: 'anemone',  name: '海葵',     icon: '🌺', layer: 1, x: .75, y: H - 22, k: 1.15,     eff: 'growth',  label: '成長速度',   sign: '+', per: [.12, .25, .40, .60, .85], base: 1500,    mul: 7,
+    lv: ['小海葵', '粉紅海葵', '海葵與小丑魚', '海葵花園', '夜光海葵'], box: [[24, 34], [28, 42], [40, 56], [52, 58], [52, 60]] },
+  { id: 'crystal',  name: '星之水晶', icon: '💠', layer: 1, x: 0,   y: H - 40,     eff: 'all',     label: '全部加成',   sign: '+', per: [.04, .08, .13, .19, .26], star: true, starPrices: [15, 35, 75, 150, 300],
+    lv: ['小水晶', '水晶簇', '星光水晶', '閃耀水晶林', '星之聖晶'], box: [[20, 34], [24, 36], [30, 48], [34, 64], [38, 118]] },
 ];
-const DC = Object.fromEntries(DECOR.map(d => [d.id, d]));
-const TIERS = [
-  { n: '普通', c: '#b0b8c4' }, { n: '精緻', c: '#4cd98b' }, { n: '稀有', c: '#4aa8ff' },
-  { n: '史詩', c: '#b36bff' }, { n: '傳說', c: '#ffc940' },
-];
-const decorPrice = (d, lv) => d.star ? d.starPrices[lv - 1] : Math.round(d.base * Math.pow(4, lv - 1));
+const SCN = Object.fromEntries(SCENE.map(p => [p.id, p]));
+const scenePrice = (p, lv) => p.star ? p.starPrices[lv - 1] : nice(p.base * Math.pow(p.mul, lv - 1));
+const sceneEff = (p, lv) => `${p.label} ${p.sign}${Math.round(p.per[lv - 1] * 100)}%`;
+// 星之水晶長在右下角的大石頭上，其他照比例排
+const scenePos = p => p.id === 'crystal' ? { x: W - 64 * sceneK(p), y: p.y } : { x: Math.round(W * p.x), y: p.y };
+// 造景的縮放：前排大一點；螢幕比較窄時整體縮小，避免擠在一起
+const sceneK = p => (p.layer ? 1.5 : 1.3) * (p.k || 1) * clamp(W / 1300, .72, 1);
+
+// ---- 讓造景融入背景：依背景調整亮度、遠的部件混一點海水色 ----
+const SC = { amb: 1, fog: [0, 0, 0], grade: [255, 255, 255], sand: [[0, 0, 0], [0, 0, 0]], rock: [0, 0, 0] };
+let FOG = 0;
+function sceneLight() {
+  const bg = BG[state.bg], th = THEME[bg.id] || THEME.fresh, top = hex(bg.top), bot = hex(bg.bot);
+  const lum = (top[0] * .3 + top[1] * .59 + top[2] * .11) / 255;
+  SC.amb = clamp(.5 + .6 * lum, .58, 1); SC.fog = mixc(bot, mixc(top, bot, .45), .5); SC.grade = top;
+  SC.sand = bg.sand.map(hex); SC.rock = mixc(bright(hex(th.rock), 1.25), SC.sand[1], .35);
+}
+const tcol = (h, k = 1) => { let c = bright(Array.isArray(h) ? h : hex(h), SC.amb * k); c = mixc(c, SC.grade, .06); return mixc(c, SC.fog, FOG); };
+const tc = (h, k = 1, a = 1) => css(tcol(h, k), a);
+const tpoly = (c, pts, h, k = 1, a = 1) => polyFill(c, pts, tc(h, k, a));
+// 自己會發光的顏色（不受背景明暗影響）
+const gcol = (h, k = 1, a = 1) => css(mixc(bright(Array.isArray(h) ? h : hex(h), k), SC.fog, FOG * .5), a);
+function glowDot(c, x, y, r, col, a = 1) {
+  const g = c.createRadialGradient(x, y, 0, x, y, r), b = Array.isArray(col) ? col : hex(col);
+  g.addColorStop(0, css(b, a)); g.addColorStop(1, css(b, 0)); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+}
+const hexPts = (x, y, r, sy = 1, rot = .5) => [0, 1, 2, 3, 4, 5].map(i => [x + Math.cos(i * Math.PI / 3 + rot) * r, y + Math.sin(i * Math.PI / 3 + rot) * r * sy]);
+function twinkle(c, x, y, r, i, col = '#ffffff') { const k = Math.max(0, Math.sin(T * 2.2 + i * 2.7)); if (k < .05) return; c.fillStyle = css(hex(col), k); star4(c, x, y, r * (.5 + k * .5)); }
+// 沙丘：用背景原本的沙色，造景看起來就像長在沙地上
+function mound(c, w, h, seed, rocks = 2) {
+  const r = mulberry(seed), n = 7, top = [], [s0, s1] = SC.sand;
+  for (let i = 0; i <= n; i++) { const t = i / n; top.push([-w + 2 * w * t, -h * Math.pow(Math.sin(Math.PI * t), .8) * (i && i < n ? .85 + r() * .3 : 0)]); }
+  for (let i = 0; i < n; i++) {
+    const a = top[i], b = top[i + 1], m = [(a[0] + b[0]) / 2 + (r() - .5) * 6, 8];
+    lpTri(c, a, b, m, css(bright(mixc(s0, s1, .2 + r() * .3), i < n / 2 ? 1.08 : .95)));
+    lpTri(c, a, m, [a[0], 8], css(bright(mixc(s0, s1, .45), 1)));
+    lpTri(c, b, [b[0], 8], m, css(bright(mixc(s0, s1, .45), .97)));
+  }
+  for (let i = 0; i < rocks; i++) lpRock(c, r, (r() - .5) * w * 1.3, 3 + r() * 3, 5 + r() * 6, SC.rock);
+}
+function shadowUnder(c, w, h = 5) { c.fillStyle = 'rgba(0,0,0,0.16)'; ell(c, 2, 3, w, h); c.fill(); }
+
+// ---- 珊瑚礁 ----
+function coralBranch(c, x, y, len, ang, w, depth, col, k = 1) {
+  const a = ang + Math.sin(T * 1.1 + x * .05 + depth) * .04;
+  const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len, nx = -Math.sin(a), ny = Math.cos(a), w2 = w * .72;
+  tpoly(c, [[x + nx * w / 2, y + ny * w / 2], [x, y], [x2, y2], [x2 + nx * w2 / 2, y2 + ny * w2 / 2]], col, .84 * k);
+  tpoly(c, [[x, y], [x - nx * w / 2, y - ny * w / 2], [x2 - nx * w2 / 2, y2 - ny * w2 / 2], [x2, y2]], col, 1.12 * k);
+  if (depth > 1) { coralBranch(c, x2, y2, len * .78, a - .42, w2, depth - 1, col, k); coralBranch(c, x2, y2, len * .72, a + .4, w2, depth - 1, col, k); }
+  else tpoly(c, hexPts(x2, y2, w2 * .7), col, 1.3 * k);
+  return [x2, y2];
+}
+function seaFan(c, x, y, w, h, col, k = 1) {
+  const sk = Math.sin(T * .9 + x * .1) * w * .06, n = 8, P = [];
+  for (let i = 0; i <= n; i++) { const a = Math.PI * (1.08 + .84 * i / n); P.push([x + Math.cos(a) * w - sk * Math.sin(a), y + Math.sin(a) * h]); }
+  c.strokeStyle = tc(col, .7 * k); c.lineWidth = 3; c.beginPath(); c.moveTo(x, y + 6); c.lineTo(x, y); c.stroke();
+  for (let i = 0; i < n; i++) tpoly(c, [[x, y], P[i], P[i + 1]], col, (i % 2 ? .9 : 1.06) * (1.08 - i / n * .2) * k, .94);
+  c.strokeStyle = tc(col, .66 * k, .85); c.lineWidth = 1.1; c.beginPath();
+  for (const p of P) { c.moveTo(x, y); c.lineTo(...p); }
+  for (const f of [.45, .72]) P.forEach((p, i) => { const q = [x + (p[0] - x) * f, y + (p[1] - y) * f]; i ? c.lineTo(...q) : c.moveTo(...q); });
+  c.stroke();
+}
+function brainCoral(c, x, y, r, col, k = 1) {
+  const n = 7, P = [];
+  for (let i = 0; i <= n; i++) { const a = Math.PI + Math.PI * i / n; P.push([x + Math.cos(a) * r, y + Math.sin(a) * r * .75]); }
+  for (let i = 0; i < n; i++) tpoly(c, [[x, y + r * .12], P[i], P[i + 1]], col, (1.18 - i / n * .38) * k);
+  c.strokeStyle = tc(col, .7 * k, .9); c.lineWidth = 1.3;
+  for (let j = 1; j <= 3; j++) {
+    const rr = r * j / 3.6; c.beginPath();
+    for (let i = 0; i <= 12; i++) { const a = Math.PI + Math.PI * i / 12, q = rr * (1 + Math.sin(i * 2.2 + j) * .09), px = x + Math.cos(a) * q, py = y + Math.sin(a) * q * .75; i ? c.lineTo(px, py) : c.moveTo(px, py); }
+    c.stroke();
+  }
+}
+function tubes(c, x, y, list, col, k = 1) {
+  for (const [dx, h, w] of list) {
+    const sw = Math.sin(T * 1.3 + dx) * 1.5, bx = x + dx;
+    tpoly(c, [[bx - w, y], [bx, y], [bx + sw, y - h], [bx - w + sw, y - h]], col, 1.1 * k);
+    tpoly(c, [[bx, y], [bx + w, y], [bx + w + sw, y - h], [bx + sw, y - h]], col, .84 * k);
+    c.fillStyle = tc(col, .5 * k); ell(c, bx + sw, y - h, w, w * .42); c.fill();
+  }
+}
+function scCoral(c, lv) {
+  const P = Math.PI / 2, rb = lv === 5;
+  const cc = k => rb ? hsl((T * 25 + k * 70) % 360, .85, .66) : null;
+  const pink = '#ff7aa8', orange = '#ff9a4a', red = '#f0606a', purple = '#a878ee', teal = '#3cc8b0', yg = '#c8d860', blue = '#5a9aff', lilac = '#d49ae8';
+  if (lv === 1) { mound(c, 34, 9, 11, 1); coralBranch(c, 0, -6, 20, -P, 8, 3, pink); return; }
+  if (lv === 2) {
+    mound(c, 44, 11, 12); seaFan(c, -14, -8, 26, 44, orange); coralBranch(c, 4, -6, 22, -P - .1, 9, 3, pink);
+    tubes(c, 24, -2, [[0, 16, 4], [7, 22, 4], [13, 12, 3.5]], teal); return;
+  }
+  if (lv === 3) {
+    mound(c, 56, 13, 13); seaFan(c, -20, -9, 30, 52, orange); coralBranch(c, 2, -8, 24, -P - .1, 10, 4, pink);
+    coralBranch(c, 28, -5, 18, -P + .3, 7, 3, purple); tubes(c, 40, 0, [[0, 14, 3.5], [6, 20, 3.5]], teal); brainCoral(c, -32, 1, 16, yg); return;
+  }
+  // Lv4 繁茂珊瑚礁、Lv5 虹彩珊瑚礁（同樣的構圖，Lv5 顏色會流轉並發光）
+  const k = rb ? 1.25 : 1;
+  if (rb) glowDot(c, 0, -34, 80, hsl((T * 25) % 360, .9, .7), .35);
+  mound(c, 66, 15, 14, 3);
+  seaFan(c, -28, -11, 34, 60, cc(0) || orange, k); seaFan(c, 12, -11, 24, 46, cc(1) || red, k);
+  coralBranch(c, -44, -3, 16, -P - .35, 7, 3, cc(2) || blue, k);
+  coralBranch(c, -4, -9, 26, -P - .05, 11, 4, cc(3) || pink, k);
+  coralBranch(c, 30, -6, 22, -P + .35, 8, 4, cc(4) || purple, k);
+  tubes(c, 50, 2, [[0, 16, 3.5], [6, 24, 3.5], [12, 12, 3]], cc(5) || teal, k);
+  brainCoral(c, -30, 3, 17, cc(6) || yg, k); brainCoral(c, 42, 5, 12, cc(7) || lilac, k);
+  // 會一閃一閃的珊瑚蟲
+  const r = mulberry(77);
+  for (let i = 0; i < (rb ? 16 : 9); i++) {
+    const x = (r() - .5) * 100, y = -8 - r() * 60, tw = .5 + .5 * Math.sin(T * 2 + i * 1.7);
+    glowDot(c, x, y, 5 + tw * 3, rb ? hsl((T * 40 + i * 30) % 360, 1, .75) : '#fff0c0', rb ? .85 : .5 * tw);
+  }
+  if (rb) for (let i = 0; i < 5; i++) twinkle(c, -50 + i * 25, -30 - (i % 3) * 18, 6, i);
+}
+
+// ---- 海星沙灘 ----
+function starfish(c, x, y, r, col, rot = 0, k = 1) {
+  c.fillStyle = 'rgba(0,0,0,0.16)'; ell(c, x + 2, y + 3, r * 1.05, r * .4); c.fill();
+  const P = [];
+  for (let i = 0; i < 10; i++) { const a = rot - Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * .42 : r; P.push([x + Math.cos(a) * rr, y + Math.sin(a) * rr * .55]); }
+  for (let i = 0; i < 10; i++) {
+    const p = P[i], q = P[(i + 1) % 10], mx = (p[0] + q[0]) / 2 - x, my = (p[1] + q[1]) / 2 - y;
+    tpoly(c, [[x, y - r * .1], p, q], col, (1 + (-mx * .4 - my * 1.3) / r * .4) * k);
+  }
+  c.fillStyle = tc(col, 1.4 * k, .9);
+  for (let i = 0; i < 10; i += 2) for (const f of [.4, .7]) { circle(c, x + (P[i][0] - x) * f, y - r * .06 + (P[i][1] - y) * f, Math.max(1, r * .07)); c.fill(); }
+}
+function conch(c, x, y, r, col, dir = 1) {
+  c.fillStyle = 'rgba(0,0,0,0.15)'; ell(c, x, y + 2, r * 1.1, r * .3); c.fill();
+  const P = [[x + r * 1.1 * dir, y - r * .15], [x + r * .2 * dir, y - r * .75], [x - r * .6 * dir, y - r * .6], [x - r * .95 * dir, y - r * .2], [x - r * .7 * dir, y + r * .05], [x + r * .4 * dir, y + r * .05]], C = [x, y - r * .3];
+  P.forEach((p, i) => tpoly(c, [C, p, P[(i + 1) % P.length]], col, [1.15, 1.2, 1.05, .9, .85, .95][i]));
+  c.strokeStyle = tc('#b08060', 1, .6); c.lineWidth = 1.3;
+  for (let i = 1; i <= 3; i++) { c.beginPath(); c.moveTo(x + (1.1 - i * .45) * r * dir, y - r * .12); c.quadraticCurveTo(x + (.9 - i * .45) * r * dir, y - r * .7, x + (.6 - i * .45) * r * dir, y - r * .55); c.stroke(); }
+  tpoly(c, hexPts(x - r * .35 * dir, y - r * .15, r * .28, .6), '#ffb0b8', 1.1);
+}
+function scallop(c, x, y, r, col, k = 1) {
+  const n = 9, P = [];
+  for (let i = 0; i <= n; i++) { const a = Math.PI + Math.PI * i / n; P.push([x + Math.cos(a) * r, y + Math.sin(a) * r * .85]); }
+  for (let i = 0; i < n; i++) tpoly(c, [[x, y + r * .15], P[i], P[i + 1]], col, (i % 2 ? .9 : 1.08) * (1.1 - i / n * .2) * k);
+  tpoly(c, [[x - r * .3, y + r * .15], [x - r * .05, y - r * .05], [x - r * .05, y + r * .2]], col, .8 * k);
+  tpoly(c, [[x + r * .3, y + r * .15], [x + r * .05, y - r * .05], [x + r * .05, y + r * .2]], col, .75 * k);
+}
+function sandDollar(c, x, y, r) {
+  tpoly(c, hexPts(x, y, r, .45, 0), '#f0e4c8', 1.05);
+  c.fillStyle = tc('#c8b48a', 1, .7);
+  for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + i * Math.PI * 2 / 5; ell(c, x + Math.cos(a) * r * .45, y + Math.sin(a) * r * .2, r * .22, r * .08, a); c.fill(); }
+}
+function pearl(c, x, y, r, glow = 0) {
+  if (glow) glowDot(c, x, y, r * (3 + glow * Math.sin(T * 2.5)), '#fff4e0', .55);
+  const g = c.createRadialGradient(x - r * .3, y - r * .35, r * .1, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(.6, '#f4ecf4'); g.addColorStop(1, '#d8c8e0');
+  c.fillStyle = g; circle(c, x, y, r); c.fill();
+}
+function scStarfish(c, lv) {
+  const r = mulberry(21 + lv);
+  for (let i = 0; i < 2 + lv; i++) lpRock(c, r, (r() - .5) * (40 + lv * 14), 2 + r() * 4, 3 + r() * 3, SC.rock);
+  if (lv >= 4) { scallop(c, -8, -3, 12, '#ff9ab8'); scallop(c, 38, 1, 9, '#c8a8f0'); }
+  if (lv >= 3) { starfish(c, -26, -1, 12, '#4a8ae8', -.3); sandDollar(c, 10, 5, 10); }
+  if (lv >= 2) conch(c, 24, -1, 11, '#f4e0c8', -1);
+  if (lv >= 4) starfish(c, -46, 3, 10, '#ff6a8a', .5);
+  if (lv === 5) {
+    glowDot(c, 0, -3, 40 + Math.sin(T * 2) * 5, '#ffe070', .45);
+    starfish(c, 0, -3, 17, '#ffc830', .2, 1.3);
+    scallop(c, 50, 4, 11, '#ffd8e8'); pearl(c, 45, 0, 3.5, 1); pearl(c, 51, -1, 4, 1); pearl(c, 56, 1, 3, 1);
+    for (let i = 0; i < 4; i++) twinkle(c, -30 + i * 20, -16 - (i % 2) * 8, 6, i, '#fff4a0');
+  } else starfish(c, 0, -3, lv >= 3 ? 16 : 15, '#ff8a3a', .2);
+}
+
+// ---- 硨磲貝 ----
+function clamShell(c, x, y, r, shell, mantle, open, o = {}) {
+  const n = 9, lipY = y - r * .42, gap = open * r * .42, rim = [], up = [];
+  for (let i = 0; i <= n; i++) { const t = i / n; rim.push([x - r + 2 * r * t, lipY + (i % 2 ? r * .1 : 0) - Math.sin(Math.PI * t) * r * .05]); }
+  const sc = i => o.rainbow ? hsl((T * 30 + i * 25) % 360, .6, .82) : shell;
+  // 下殼
+  c.fillStyle = 'rgba(0,0,0,0.18)'; ell(c, x + 2, y + 2, r * .95, r * .22); c.fill();
+  for (let i = 0; i < n; i++) tpoly(c, [[x, y], rim[i], rim[i + 1]], sc(i), (i % 2 ? .88 : 1.02) * (1.08 - i / n * .25));
+  // 打開時看得到裡面的外套膜和珍珠
+  if (gap > 1) {
+    const top = rim.map(([px, py], i) => [px, py - gap + (i % 2 ? 0 : r * .1)]);
+    polyFill(c, [...rim, ...top.slice().reverse()], o.mantleGlow ? gcol(mantle, 1) : tc(mantle));
+    c.fillStyle = o.mantleGlow ? gcol('#9afcff', 1, .9) : tc(o.spot || '#ffffff', 1, .7);
+    for (let i = 1; i < n; i++) { circle(c, rim[i][0], rim[i][1] - gap * .5, Math.min(gap * .18, r * .05) + .5); c.fill(); }
+    if (o.pearl) pearl(c, x, lipY - gap * .45, Math.min(o.pearl, gap * .45 + 1), o.pearlGlow || 0);
+  }
+  // 上殼
+  for (let i = 0; i <= n; i++) { const a = Math.PI + Math.PI * i / n; up.push([x + Math.cos(a) * r, lipY - gap + Math.sin(a) * r * .72]); }
+  const ur = rim.map(([px, py], i) => [px, py - gap + (i % 2 ? 0 : r * .1)]);
+  for (let i = 0; i < n; i++) tpoly(c, [[x, lipY - gap - r * .1], ur[i], ur[i + 1], up[i + 1], up[i]].filter(Boolean), sc(i + 3), (i % 2 ? .92 : 1.1) * (1.15 - i / n * .3));
+  c.strokeStyle = tc(o.rainbow ? '#ffffff' : shell, .7, .6); c.lineWidth = 1;
+  c.beginPath(); for (let i = 1; i < n; i++) { c.moveTo(x, lipY - gap - r * .55); c.lineTo(...up[i]); } c.stroke();
+}
+function scClam(c, lv) {
+  const op = sp => clamp(.5 - .5 * Math.cos(T * sp), 0, 1);
+  if (lv === 1) { mound(c, 26, 6, 31, 1); clamShell(c, 0, 0, 16, '#e0d0b8', '#c8a080', .15 + .1 * op(.7)); return; }
+  if (lv === 2) { mound(c, 30, 7, 32, 2); clamShell(c, 0, 0, 20, '#f0e0d0', '#e8b0b8', op(.5), { pearl: 4.5 }); return; }
+  if (lv === 3) { mound(c, 40, 8, 33, 2); clamShell(c, 0, 0, 28, '#d8d0c0', '#2ab8c8', .3 + .7 * op(.45), { pearl: 6, spot: '#9af0ff' }); return; }
+  if (lv === 4) {
+    mound(c, 50, 9, 34, 3); clamShell(c, 34, 3, 15, '#f0c8d0', '#ff8ab0', op(.6), { pearl: 3.5 });
+    clamShell(c, -4, 0, 30, '#e0d4c4', '#3a6ae8', .3 + .7 * op(.4), { pearl: 7, pearlGlow: .8, spot: '#c8a0ff' }); return;
+  }
+  mound(c, 54, 10, 35, 3);
+  const o = .35 + .65 * op(.4);
+  glowDot(c, -4, -18, 60 + 10 * Math.sin(T * 2), '#b8f0ff', .3 * o);
+  clamShell(c, 36, 4, 16, '#ffd8f0', '#ff6ad0', op(.6), { pearl: 4, pearlGlow: 1, rainbow: true, mantleGlow: true });
+  clamShell(c, -4, 0, 34, '#ffffff', '#7a3ae8', o, { pearl: 8, pearlGlow: 1.5, rainbow: true, mantleGlow: true });
+  for (let i = 0; i < 5; i++) twinkle(c, -40 + i * 18, -38 - (i % 2) * 12, 6, i, '#e0fbff');
+}
+
+// ---- 海葵 ----
+function anemone(c, x, y, r, n, col, tip, o = {}) {
+  const ph = o.ph || 0, dk = bright(hex(col), .7);
+  tpoly(c, [[x - r * .5, y], [x, y], [x, y - r * .75], [x - r * .62, y - r * .75]], dk, 1.1);
+  tpoly(c, [[x, y], [x + r * .5, y], [x + r * .62, y - r * .75], [x, y - r * .75]], dk, .85);
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : .5, bx = x + (t - .5) * r * 1.15, by = y - r * .72, len = r * (1.15 - Math.abs(t - .5) * .55);
+    const pts = [[bx, by]]; let px = bx, py = by;
+    for (let j = 1; j <= 4; j++) {
+      const q = j / 4, a = -Math.PI / 2 + (t - .5) * (1.6 + q * 1.4) + Math.sin(T * 1.5 + i * .8 + ph + q * 1.5) * .28 * q;
+      px += Math.cos(a) * len / 4; py += Math.sin(a) * len / 4; pts.push([px, py]);
+    }
+    const cl = o.rainbow ? hsl((T * 40 + i * 22 + ph * 50) % 360, .85, .68) : col;
+    ribbon(c, pts, r * .12, o.rainbow ? mixc(cl, SC.fog, FOG) : tcol(cl, i % 2 ? .92 : 1.05), .95);
+    if (o.glow) glowDot(c, px, py, r * .28, o.rainbow ? hsl((T * 40 + i * 22 + 180) % 360, 1, .75) : tip, .8);
+    c.fillStyle = o.glow ? gcol(tip, 1.1) : tc(tip); circle(c, px, py, r * .075 + .6); c.fill();
+  }
+}
+function miniClown(c, x, y, i) {
+  const a = T * .6 + i * 3, px = x + Math.cos(a) * 22, py = y + Math.sin(a * 2) * 6, dir = -Math.sin(a) >= 0 ? 1 : -1;
+  c.save(); c.translate(px, py); c.scale(dir, 1); drawClown(c, 9, Math.sin(T * 8 + i) * .15, 1, null); c.restore();
+}
+function scAnemone(c, lv) {
+  const r = mulberry(41);
+  lpRock(c, r, -4, 2, 16 + lv * 2, SC.rock);
+  if (lv >= 3) lpRock(c, r, 22, 4, 12, SC.rock);
+  if (lv === 1) { anemone(c, 0, -8, 14, 12, '#5ac87a', '#d8ffb8'); return; }
+  if (lv === 2) { anemone(c, 0, -10, 18, 16, '#ff8ab8', '#b85ae8'); return; }
+  const rb = lv === 5, g = lv >= 4;
+  if (rb) glowDot(c, -2, -24, 64, hsl((T * 30) % 360, .9, .7), .3);
+  if (lv >= 4) { lpRock(c, r, -32, 5, 11, SC.rock); anemone(c, -32, -3, 15, 14, '#a870e8', '#6af0ff', { glow: g, rainbow: rb, ph: 2 }); }
+  anemone(c, 22, -4, 13, 12, '#ff9a4a', '#ffe08a', { glow: g, rainbow: rb, ph: 1 });
+  miniClown(c, -4, -30, 0);
+  anemone(c, -6, -10, 20, 18, '#ff7ab0', '#b85ae8', { glow: g, rainbow: rb });
+  if (rb) { miniClown(c, 10, -20, 1); for (let i = 0; i < 4; i++) twinkle(c, -36 + i * 22, -48 - (i % 2) * 8, 5, i); }
+}
+
+// ---- 城堡 ----
+function tower(c, x, y, w, h, wall, roof, o = {}) {
+  tpoly(c, [[x - w / 2, y], [x, y], [x, y - h], [x - w / 2, y - h]], wall, 1.1);
+  tpoly(c, [[x, y], [x + w / 2, y], [x + w / 2, y - h], [x, y - h]], wall, .82);
+  c.strokeStyle = tc(wall, .62, .45); c.lineWidth = 1;
+  for (let yy = y - 9, k = 0; yy > y - h + 3; yy -= 9, k++) { c.beginPath(); c.moveTo(x - w / 2, yy); c.lineTo(x + w / 2, yy); c.moveTo(x + (k % 2 ? -w / 4 : w / 4), yy); c.lineTo(x + (k % 2 ? -w / 4 : w / 4), yy + 9); c.stroke(); }
+  for (const dy of o.win || []) winAt(c, x, y - dy, w * .2, o.lit);
+  if (roof) {
+    const rw = w * .64, rh = o.rh || w * 1.15;
+    tpoly(c, [[x - rw, y - h], [x, y - h], [x, y - h - rh]], roof, 1.12); tpoly(c, [[x, y - h], [x + rw, y - h], [x, y - h - rh]], roof, .8);
+    if (o.flag) flagAt(c, x, y - h - rh, o.flag);
+    if (o.orb) { glowDot(c, x, y - h - rh - 6, 18, o.orb, .8); c.fillStyle = gcol(o.orb, 1.2); circle(c, x, y - h - rh - 6, 3.5); c.fill(); }
+  } else for (let k = 0; k < 3; k++) { const bx = x - w / 2 + k * w / 2.5; tpoly(c, [[bx, y - h], [bx + w / 5, y - h], [bx + w / 5, y - h - 6], [bx, y - h - 6]], wall, k < 1.5 ? 1.05 : .85); }
+}
+function winAt(c, x, y, s, lit) {
+  const P = [[x - s / 2, y], [x - s / 2, y - s], [x, y - s * 1.5], [x + s / 2, y - s], [x + s / 2, y]];
+  if (lit) { glowDot(c, x, y - s * .7, s * 2.4, lit, .55); polyFill(c, P, gcol(lit, 1.1)); } else tpoly(c, P, '#162030', .9);
+}
+function flagAt(c, x, y, col) {
+  c.strokeStyle = tc('#5a4a3a'); c.lineWidth = 1.5; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y - 14); c.stroke();
+  const wv = Math.sin(T * 3 + x) * 2;
+  tpoly(c, [[x, y - 14], [x + 10, y - 12 + wv], [x + 16, y - 10 + wv * 1.5], [x, y - 7]], col, 1.05);
+}
+function gateAt(c, x, y, w, h) { tpoly(c, [[x - w / 2, y], [x - w / 2, y - h * .6], [x - w * .3, y - h * .9], [x, y - h], [x + w * .3, y - h * .9], [x + w / 2, y - h * .6], [x + w / 2, y]], '#1a1a28', .9); }
+function scCastle(c, lv) {
+  if (lv === 1) {
+    mound(c, 48, 8, 51, 3);
+    const P = [[-36, 0], [-36, -30], [-28, -34], [-22, -28], [-14, -40], [-4, -38], [4, -44], [12, -32], [20, -26], [28, -18], [36, -12], [36, 0]];
+    tpoly(c, P, '#a8a090', 1); tpoly(c, [[4, -44], [12, -32], [20, -26], [28, -18], [36, -12], [36, 0], [4, 0]], '#a8a090', .82);
+    c.strokeStyle = tc('#6a6458', 1, .5); c.lineWidth = 1; for (let y = -8; y > -40; y -= 8) { c.beginPath(); c.moveTo(-36, y); c.lineTo(Math.min(36, 30 + y * .7), y); c.stroke(); }
+    winAt(c, -12, -12, 12);
+    c.fillStyle = tc('#5a9a4a', 1, .9); for (const [x, y, r] of [[-30, -30, 5], [-18, -36, 4], [8, -38, 4], [26, -16, 4]]) { blob(c, 1, 1, x, y, r, r * .6, c.fillStyle, 6); }
+    const r = mulberry(5); for (let i = 0; i < 4; i++) lpRock(c, r, 20 + r() * 20, 2, 3 + r() * 4, tcol('#a8a090', .9));
+    return;
+  }
+  if (lv === 2) {
+    mound(c, 50, 9, 52, 2);
+    tower(c, 12, 0, 44, 30, '#b8b0a0', null, { win: [16] });
+    tower(c, -18, 0, 26, 64, '#c0b8a8', '#3aa8a0', { win: [24, 46], rh: 32 });
+    return;
+  }
+  if (lv === 3) {
+    mound(c, 62, 10, 53, 3);
+    tower(c, 0, 0, 48, 52, '#b8b0a0', null, { win: [36] }); gateAt(c, 0, 0, 16, 24);
+    tower(c, -32, 0, 22, 74, '#c4bcac', '#3a78c8', { win: [30, 54], rh: 30 }); tower(c, 32, 0, 22, 74, '#c4bcac', '#3a78c8', { win: [30, 54], rh: 30 });
+    return;
+  }
+  const five = lv === 5, wall = five ? '#eef0f8' : '#d8ccc0', rA = five ? '#f0c040' : '#e86a9a', rB = five ? '#ffd860' : '#b86ae8', lit = five ? '#7af0ff' : '#ffd27a';
+  if (five) glowDot(c, 0, -80, 110, '#bff4ff', .25 + .08 * Math.sin(T * 1.5));
+  mound(c, five ? 76 : 70, 12, 54, 4);
+  tower(c, -40, 0, 22, five ? 90 : 78, wall, rA, { win: [34, 60], lit, rh: 28, flag: five ? null : '#ff5a7a' });
+  tower(c, 40, 0, 22, five ? 90 : 78, wall, rA, { win: [34, 60], lit, rh: 28, flag: five ? null : '#ff5a7a' });
+  tower(c, 0, 0, 64, 46, wall, null, { win: [] });
+  tower(c, -20, 0, 20, five ? 112 : 98, wall, rB, { win: [50, 76], lit, rh: 30 });
+  tower(c, 20, 0, 20, five ? 112 : 98, wall, rB, { win: [50, 76], lit, rh: 30 });
+  tower(c, 0, 0, 26, five ? 130 : 116, wall, rA, { win: [64, 92], lit, rh: 38, flag: five ? null : '#ffd84a', orb: five ? '#aef6ff' : null });
+  gateAt(c, 0, 0, 18, 28); if (five) { glowDot(c, 0, -12, 22, lit, .5); }
+  if (five) for (let i = 0; i < 5; i++) { const t = (T * .35 + i / 5) % 1; c.strokeStyle = `rgba(220,250,255,${.7 * (1 - t)})`; c.lineWidth = 1; circle(c, Math.sin(T + i) * 6, -176 - t * 70, 2 + i % 2); c.stroke(); }
+}
+
+// ---- 沉船 ----
+function hull(c, len, h, wood, o = {}) {
+  const P = [[-len * .5, -h], [len * .42, -h * 1.05], [len * .6, -h * 1.35], [len * .44, -h * .3], [len * .26, 0], [-len * .38, 0], [-len * .52, -h * .42]];
+  tpoly(c, P, wood, 1.02);
+  tpoly(c, [[-len * .52, -h * .42], [len * .5, -h * .55], [len * .44, -h * .3], [len * .26, 0], [-len * .38, 0]], wood, .8);
+  c.strokeStyle = tc(wood, .6, .7); c.lineWidth = 1;
+  for (const f of [.25, .5, .75]) { c.beginPath(); c.moveTo(-len * .5, -h * (1 - f * .6)); c.quadraticCurveTo(0, -h * (1 - f) + 2, len * (.42 + (1 - f) * .1), -h * (1.05 - f * .8)); c.stroke(); }
+  tpoly(c, [[-len * .5, -h - 3], [len * .42, -h * 1.05 - 3], [len * .42, -h * 1.05], [-len * .5, -h]], wood, 1.25);
+  for (let i = 0; i < (o.ports || 0); i++) {
+    const x = -len * .3 + i * len * .16, y = -h * .66;
+    if (o.lit) { glowDot(c, x, y, 9, o.lit, .6); c.fillStyle = gcol(o.lit, 1.1); } else c.fillStyle = tc('#1a1410');
+    circle(c, x, y, 3.2); c.fill();
+  }
+  if (o.cabin) { tpoly(c, [[-len * .5, -h], [-len * .5, -h - o.cabin], [-len * .22, -h - o.cabin], [-len * .22, -h * 1.02]], wood, 1.12); winAt(c, -len * .36, -h - 4, 6, o.lit); }
+}
+function sailAt(c, x, y, w, h, col, a, glow) {
+  const sw = Math.sin(T * 1.2 + x) * w * .12, P = [[x, y], [x + w + sw, y + h * .1], [x + w * .8 + sw, y + h * .5], [x + w * .95 + sw * 1.3, y + h * .7], [x + w * .6, y + h * .78], [x + w * .45, y + h * .95], [x + w * .2, y + h * .8], [x, y + h]];
+  if (glow) { glowDot(c, x + w * .5, y + h * .5, w * 1.1, col, .3); polyFill(c, P, gcol(col, 1, a)); } else tpoly(c, P, col, 1, a);
+  c.strokeStyle = glow ? gcol(col, .8, .6) : tc(col, .7, .6); c.lineWidth = 1; c.beginPath(); c.moveTo(x + w * .3, y + h * .05); c.lineTo(x + w * .25, y + h * .82); c.stroke();
+}
+function mastAt(c, x, y, h, wood, broken) {
+  tpoly(c, [[x - 2, y], [x + 2, y], [x + 2, y - h + (broken ? 6 : 0)], [x - 2, y - h]], wood, .95);
+  if (!broken) tpoly(c, [[x - h * .3, y - h * .78], [x + h * .3, y - h * .8], [x + h * .3, y - h * .76], [x - h * .3, y - h * .74]], wood, .85);
+}
+function chest(c, x, y, glint) {
+  tpoly(c, [[x - 12, y], [x + 12, y], [x + 12, y - 11], [x - 12, y - 11]], '#8a5a2a', 1);
+  tpoly(c, [[x - 12, y - 11], [x + 12, y - 11], [x + 14, y - 24], [x - 10, y - 24]], '#9a6a32', 1.1);
+  c.fillStyle = gcol('#ffd040', 1); for (const [dx, dy] of [[-8, -12], [-3, -14], [2, -13], [7, -12], [-5, -16], [1, -17], [5, -15]]) { circle(c, x + dx, y + dy, 2.6); c.fill(); }
+  c.fillStyle = gcol('#c89020'); c.fillRect(x - 12, y - 7, 24, 2.5); c.fillRect(x - 1.5, y - 11, 3, 11);
+  if (glint) { glowDot(c, x, y - 14, 22, '#ffe070', .45); for (let i = 0; i < 3; i++) twinkle(c, x - 8 + i * 8, y - 18 - (i % 2) * 5, 5, i + 3, '#fff4b0'); }
+}
+function scShip(c, lv) {
+  const wood = lv === 5 ? '#6a4a3a' : '#8a6038';
+  if (lv === 1) {
+    c.save(); c.rotate(-.18); hull(c, 56, 14, wood); c.restore();
+    c.strokeStyle = tc(wood, .9); c.lineWidth = 3; c.beginPath(); c.moveTo(18, -4); c.lineTo(40, -22); c.stroke(); tpoly(c, [[38, -20], [46, -28], [48, -24], [42, -18]], wood, .9);
+    mound(c, 44, 8, 61, 2); return;
+  }
+  if (lv === 2) {
+    c.save(); c.rotate(-.12); hull(c, 80, 20, wood); mastAt(c, 2, -20, 46, wood, true); sailAt(c, 4, -58, 26, 30, '#e8e0c8', .75); c.restore();
+    mound(c, 52, 9, 62, 2); return;
+  }
+  const five = lv === 5, len = five ? 140 : 120, hh = five ? 34 : 30, lit = lv === 4 ? '#ffd27a' : five ? '#7af0e0' : null;
+  if (five) glowDot(c, 0, -60, 110, '#7af0e0', .18 + .06 * Math.sin(T * 1.3));
+  c.save(); c.rotate(-.1);
+  hull(c, len, hh, wood, { ports: 5, lit, cabin: 16 });
+  mastAt(c, 8, -hh, 86, wood); sailAt(c, 10, -hh - 78, 34, 48, five ? '#9af8ec' : '#e0d6b8', five ? .5 : .78, five);
+  if (five) { mastAt(c, -34, -hh - 10, 64, wood); sailAt(c, -32, -hh - 68, 26, 36, '#9af8ec', .5, true); }
+  c.strokeStyle = tc('#4a3a2a', 1, .7); c.lineWidth = 1; c.beginPath(); c.moveTo(8, -hh - 86); c.lineTo(len * .6, -hh * 1.35); c.moveTo(8, -hh - 86); c.lineTo(-len * .5, -hh - 16); c.stroke();
+  if (lit) { const lx = 8, ly = -hh - 52 + Math.sin(T * 1.5) * 2; glowDot(c, lx + 6, ly, 18, lit, .7); c.fillStyle = gcol(lit, 1.2); circle(c, lx + 6, ly, 3.2); c.fill(); }
+  c.restore();
+  mound(c, five ? 80 : 70, 11, 63, 3);
+  if (lv >= 4) chest(c, len * .3, 8, true);
+  if (five) { chest(c, -len * .34, 10, true); for (let i = 0; i < 4; i++) { const t = (T * .3 + i / 4) % 1; c.strokeStyle = `rgba(200,255,245,${.7 * (1 - t)})`; c.lineWidth = 1; circle(c, -20 + i * 14 + Math.sin(T + i) * 4, -40 - t * 90, 2 + i % 2); c.stroke(); } }
+}
+
+// ---- 古代拱門 ----
+function scArch(c, lv) {
+  if (lv <= 2) {
+    const s = lv === 2 ? 1.15 : 1;
+    mound(c, 56 * s, 9, 71, 3);
+    c.save(); c.scale(s, s);
+    const rock = mixc(SC.rock, [150, 140, 130], .3);
+    tpoly(c, [[-46, 0], [-44, -30], [-36, -52], [-22, -22], [-24, 0]], rock, 1.1);
+    tpoly(c, [[-36, -52], [-16, -62], [-12, -34], [-22, -22]], rock, 1.22);
+    tpoly(c, [[-16, -62], [8, -62], [30, -54], [18, -24], [6, -34], [-12, -34]], rock, 1.02);
+    tpoly(c, [[30, -54], [42, -36], [46, 0], [22, 0], [18, -24]], rock, .8);
+    tpoly(c, [[-44, -30], [-46, 0], [-34, 0], [-36, -20]], rock, .95);
+    if (lv === 2) {
+      c.fillStyle = tc('#4e9a4a'); for (const [x, y, rx] of [[-30, -52, 9], [-8, -63, 10], [16, -61, 8], [34, -48, 6], [-42, -26, 5]]) blob(c, 1, 1, x, y, rx, rx * .45, c.fillStyle, 6);
+      for (let i = 0; i < 5; i++) { const x = -28 + i * 13, pts = []; for (let j = 0; j <= 3; j++) pts.push([x + Math.sin(T * 1.4 + i + j * .8) * j * 2, -60 - j * 7 + Math.abs(x) * .1]); ribbon(c, pts, 3, tcol(i % 2 ? '#5ac87a' : '#3a9a5a'), .95); }
+    }
+    c.restore(); return;
+  }
+  if (lv === 3) {
+    mound(c, 62, 9, 72, 3);
+    const st = '#c8bca8';
+    for (const x of [-34, 34]) { tpoly(c, [[x - 9, 0], [x, 0], [x, -82], [x - 9, -82]], st, 1.1); tpoly(c, [[x, 0], [x + 9, 0], [x + 9, -82], [x, -82]], st, .82); tpoly(c, [[x - 12, -82], [x + 12, -82], [x + 12, -88], [x - 12, -88]], st, 1); }
+    tpoly(c, [[-50, -88], [50, -88], [52, -100], [-52, -100]], st, 1.05); tpoly(c, [[-52, -100], [52, -100], [48, -104], [-48, -104]], st, 1.25);
+    c.strokeStyle = tc(st, .6, .6); c.lineWidth = 1; for (const x of [-34, 34]) for (let y = -12; y > -80; y -= 14) { c.beginPath(); c.moveTo(x - 9, y); c.lineTo(x + 9, y); c.stroke(); }
+    c.beginPath(); for (let x = -40; x <= 40; x += 10) { c.moveTo(x, -91); c.lineTo(x + 5, -97); } c.stroke();
+    for (const x of [-38, 30]) { const pts = []; for (let j = 0; j <= 6; j++) pts.push([x + Math.sin(j * 1.3 + T * .8) * 4, -j * 14]); ribbon(c, pts, 3, tcol('#4e9a4a'), .95); }
+    const r = mulberry(8); lpRock(c, r, 50, 4, 8, tcol(st, .9)); tpoly(c, [[42, 6], [60, 0], [64, 6], [46, 10]], st, .9);
+    return;
+  }
+  if (lv === 4) {
+    mound(c, 72, 9, 73, 2);
+    const mb = '#ece6d8';
+    for (let i = 0; i < 3; i++) { const w = 66 - i * 7, y = -i * 6; tpoly(c, [[-w, y], [w, y], [w, y - 6], [-w, y - 6]], mb, 1.12 - i * .05); tpoly(c, [[-w, y], [w, y], [w, y - 1.5], [-w, y - 1.5]], mb, .8); }
+    for (const x of [-42, -14, 14, 42]) {
+      tpoly(c, [[x - 6, -18], [x, -18], [x, -86], [x - 6, -86]], mb, 1.1); tpoly(c, [[x, -18], [x + 6, -18], [x + 6, -86], [x, -86]], mb, .82);
+      c.strokeStyle = tc(mb, .7, .6); c.lineWidth = 1; c.beginPath(); c.moveTo(x - 3, -20); c.lineTo(x - 3, -84); c.moveTo(x + 3, -20); c.lineTo(x + 3, -84); c.stroke();
+      tpoly(c, [[x - 9, -86], [x + 9, -86], [x + 7, -91], [x - 7, -91]], mb, 1);
+    }
+    tpoly(c, [[-56, -91], [56, -91], [56, -101], [-56, -101]], mb, 1.02);
+    tpoly(c, [[-60, -101], [0, -124], [0, -101]], mb, 1.15); tpoly(c, [[0, -101], [0, -124], [60, -101]], mb, .88);
+    const tg = .7 + .3 * Math.sin(T * 2); glowDot(c, 0, -111, 22, '#7af0ff', .6 * tg);
+    c.strokeStyle = gcol('#aef8ff', 1.1); c.lineWidth = 1.8; c.beginPath(); c.moveTo(0, -104); c.lineTo(0, -120); c.moveTo(-6, -118); c.lineTo(-6, -112); c.lineTo(6, -112); c.lineTo(6, -118); c.stroke();
+    return;
+  }
+  // Lv5 龍宮牌樓
+  mound(c, 78, 10, 74, 2);
+  glowDot(c, 0, -80, 120, '#ffcf70', .18 + .05 * Math.sin(T * 1.2));
+  const red = '#d8342c', tile = '#2a8a6a', gold = '#f0c040';
+  for (const [x, h] of [[-58, 78], [58, 78], [-24, 108], [24, 108]]) {
+    tpoly(c, [[x - 6, 0], [x + 6, 0], [x + 5, -8], [x - 5, -8]], '#b8b0a0', 1);
+    tpoly(c, [[x - 4, -8], [x, -8], [x, -h], [x - 4, -h]], red, 1.12); tpoly(c, [[x, -8], [x + 4, -8], [x + 4, -h], [x, -h]], red, .8);
+  }
+  const roof = (x, y, w, h) => {
+    tpoly(c, [[x - w / 2 - 10, y - 9], [x - w / 2, y], [x, y], [x, y - h], [x - w * .34, y - h]], tile, 1.15);
+    tpoly(c, [[x + w / 2 + 10, y - 9], [x + w / 2, y], [x, y], [x, y - h], [x + w * .34, y - h]], tile, .85);
+    c.strokeStyle = gcol(gold, 1); c.lineWidth = 2; c.beginPath(); c.moveTo(x - w / 2 - 10, y - 9); c.lineTo(x - w / 2, y); c.lineTo(x + w / 2, y); c.lineTo(x + w / 2 + 10, y - 9); c.moveTo(x - w * .34, y - h); c.lineTo(x + w * .34, y - h); c.stroke();
+    c.fillStyle = gcol(gold); for (const d of [-1, 1]) { c.beginPath(); c.moveTo(x + d * w * .34, y - h); c.lineTo(x + d * (w * .34 + 5), y - h - 7); c.lineTo(x + d * (w * .34 - 2), y - h - 2); c.fill(); }
+  };
+  tpoly(c, [[-62, -72], [62, -72], [62, -78], [-62, -78]], red, 1);
+  roof(-41, -80, 40, 12); roof(41, -80, 40, 12);
+  tpoly(c, [[-30, -100], [30, -100], [30, -108], [-30, -108]], red, 1.05);
+  tpoly(c, [[-16, -84], [16, -84], [16, -99], [-16, -99]], '#1a2a5a', 1);
+  c.strokeStyle = gcol(gold); c.lineWidth = 1.2; c.strokeRect(-16, -99, 32, 15);
+  c.fillStyle = gcol(gold, 1.1); c.font = 'bold 11px "Noto Sans TC","PingFang TC",sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('龍宮', 0, -91.5);
+  roof(0, -110, 70, 16);
+  for (const x of [-41, 41]) { const y = -64 + Math.sin(T * 1.5 + x) * 1.5; c.strokeStyle = tc('#3a2a1a'); c.lineWidth = 1; c.beginPath(); c.moveTo(x, -72); c.lineTo(x, y - 6); c.stroke(); glowDot(c, x, y, 16, '#ff7040', .7); c.fillStyle = gcol('#ff5030', 1.1); ell(c, x, y, 5, 6.5); c.fill(); c.fillStyle = gcol(gold); c.fillRect(x - 3, y - 7.5, 6, 2); c.fillRect(x - 3, y + 5.5, 6, 2); }
+}
+
+// ---- 星之水晶（長在右下角的大石頭上） ----
+function shard(c, x, y, w, h, ang, col, a = .88) {
+  c.save(); c.translate(x, y); c.rotate(ang);
+  const b = hex(col), bl = [-w / 2, 0], br = [w / 2, 0], tl = [-w / 2, -h * .78], tr = [w / 2, -h * .78], tip = [w * .08, -h], ml = [-w * .1, 0], mt = [-w * .1, -h * .8];
+  polyFill(c, [bl, ml, mt, tl], gcol(b, 1.2, a)); polyFill(c, [ml, br, tr, mt], gcol(b, .8, a));
+  polyFill(c, [tl, mt, tip], gcol(b, 1.45, a)); polyFill(c, [mt, tr, tip], gcol(b, 1, a));
+  c.strokeStyle = 'rgba(255,255,255,0.55)'; c.lineWidth = 1; c.beginPath(); c.moveTo(...mt); c.lineTo(...ml); c.moveTo(...mt); c.lineTo(...tip); c.stroke();
+  c.restore();
+}
+function scCrystal(c, lv) {
+  const r = mulberry(91);
+  const S = [[0, 9, 26, .05, '#b48cff'], [-10, 7, 18, -.4, '#9ad8ff'], [10, 7, 16, .42, '#d8a8ff'], [-18, 8, 26, -.25, '#8ae8ff'], [18, 8, 30, .2, '#c090ff'],
+    [-28, 7, 20, -.55, '#b0a0ff'], [26, 7, 22, .5, '#9af0ff'], [-6, 10, 40, -.12, '#e0b8ff'], [6, 9, 36, .15, '#a8e0ff']];
+  const n = [1, 3, 5, 7, 9][lv - 1], sc = [1, 1.05, 1.35, 1.7, 2.05][lv - 1];
+  lpRock(c, r, 0, 6, 16 + lv * 3, SC.rock);
+  if (lv >= 3) glowDot(c, 0, -14 * sc, 30 * sc, '#c8a8ff', [0, 0, .35, .45, .6][lv - 1] * (.8 + .2 * Math.sin(T * 2)));
+  const order = [...S.slice(0, n)].sort((a, b) => b[2] - a[2]);
+  for (const [x, w, h, ang, col] of order) shard(c, x * sc * .8, 2, w * sc * .8, h * sc, ang, col);
+  if (lv >= 4) for (let i = 0; i < 4; i++) { const a = T * .8 + i * Math.PI / 2; c.fillStyle = `rgba(255,255,255,${.6 + .4 * Math.sin(T * 3 + i)})`; star4(c, Math.cos(a) * 30, -30 * sc + Math.sin(a) * 10, 4); }
+  if (lv === 5) {
+    const y = -96 + Math.sin(T * 1.3) * 4, k = Math.cos(T * 1.1);
+    c.save(); c.globalCompositeOperation = 'lighter'; c.translate(0, y); c.rotate(T * .2);
+    for (let i = 0; i < 8; i++) { c.rotate(Math.PI / 4); c.fillStyle = 'rgba(200,170,255,0.12)'; c.beginPath(); c.moveTo(0, 0); c.lineTo(-4, -46); c.lineTo(4, -46); c.fill(); }
+    c.restore();
+    glowDot(c, 0, y, 34, '#e8d0ff', .8);
+    const hw = 11 * Math.max(.25, Math.abs(k));
+    polyFill(c, [[0, y - 18], [-hw, y], [0, y + 18]], gcol('#e8d0ff', k > 0 ? 1.2 : .9, .95)); polyFill(c, [[0, y - 18], [hw, y], [0, y + 18]], gcol('#b890ff', k > 0 ? .9 : 1.2, .95));
+    for (let i = 0; i < 5; i++) twinkle(c, -34 + i * 17, -60 - (i % 2) * 20, 5, i, '#f0e0ff');
+  }
+}
+const SCENE_DRAW = { castle: scCastle, arch: scArch, ship: scShip, coral: scCoral, starfish: scStarfish, clam: scClam, anemone: scAnemone, crystal: scCrystal };
+
+// 把造景畫到水族箱：layer 0 在海草後面、layer 1 在海草前面
+// 造景的動畫很慢，先畫在兩張暫存畫布上、每秒更新約 15 次，每一幀只要貼上去，手機比較不會卡
+let selPiece = null, sceneT = -1;
+const SCENE_CV = [document.createElement('canvas'), document.createElement('canvas')];
+function paintScene(c, layer) {
+  for (const p of SCENE) {
+    const st = state.scene[p.id]; if (p.layer !== layer || !st.look) continue;
+    const { x, y } = scenePos(p), k = sceneK(p);
+    FOG = layer ? .03 : .2; c.save(); c.translate(x, y); c.scale(k, k); SCENE_DRAW[p.id](c, st.look); c.restore(); FOG = 0;
+  }
+}
+function drawScene(layer) {
+  if (layer === 0 && (T - sceneT > .066 || T < sceneT)) {
+    sceneT = T;
+    for (const L of [0, 1]) {
+      const cv = SCENE_CV[L]; if (cv.width !== canvas.width || cv.height !== canvas.height) { cv.width = canvas.width; cv.height = canvas.height; }
+      const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.setTransform(scale, 0, 0, scale, 0, 0);
+      paintScene(g, L);
+    }
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(SCENE_CV[layer], 0, 0); ctx.restore();
+  const edit = mode === 'look' || (menuOpen && tab === 'decor');
+  for (const p of SCENE) {
+    if (p.layer !== layer) continue;
+    const st = state.scene[p.id], { x, y } = scenePos(p);
+    if (!st.look && edit) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ell(ctx, x, y - 4, 32, 10); ctx.stroke(); ctx.setLineDash([]);
+      ctx.globalAlpha = .75; emoji(ctx, p.icon, x, y - 22, 24); ctx.globalAlpha = 1;
+    }
+    if (menuOpen && tab === 'decor' && selPiece === p.id) {
+      const hw = st.look ? p.box[st.look - 1][0] * sceneK(p) : 34;
+      ctx.strokeStyle = `rgba(255,201,64,${.6 + .4 * Math.sin(T * 5)})`; ctx.setLineDash([7, 5]); ctx.lineWidth = 2.5; ell(ctx, x, y - 2, hw + 6, 12); ctx.stroke(); ctx.setLineDash([]);
+    }
+  }
+}
+// 點水族箱時看看點到哪個造景
+function sceneAt(pt) {
+  for (const p of [...SCENE].reverse()) {
+    const st = state.scene[p.id], { x, y } = scenePos(p), k = st.look ? sceneK(p) : 1, [hw, h] = (st.look ? p.box[st.look - 1] : [34, 34]).map(v => v * k);
+    if (Math.abs(pt.x - x) < hw && pt.y > y - h && pt.y < y + 10) return p;
+  }
+  return null;
+}
+// 選單裡的小預覽圖（依目前背景的顏色畫，換背景會重畫）
+const SCENE_THUMB = {};
+function sceneThumb(p, lv) {
+  const key = `${p.id}-${lv}-${state.bg}`; if (SCENE_THUMB[key]) return SCENE_THUMB[key];
+  const cv = document.createElement('canvas'), W2 = 184, H2 = 110; cv.width = W2; cv.height = H2;
+  const c = cv.getContext('2d'), bg = BG[state.bg];
+  c.fillStyle = lg(c, 0, H2, bg.top, bg.bot); c.fillRect(0, 0, W2, H2);
+  c.fillStyle = lg(c, H2 - 22, H2, bg.sand[0], bg.sand[1]); c.fillRect(0, H2 - 22, W2, 22);
+  const [hw, h] = p.box[lv - 1], k = Math.min((W2 - 16) / (hw * 2), (H2 - 20) / (h + 12));
+  const saveT = T; T = 1.3; FOG = 0;
+  c.translate(W2 / 2, H2 - 10); c.scale(k, k); SCENE_DRAW[p.id](c, lv);
+  T = saveT;
+  return SCENE_THUMB[key] = cv.toDataURL();
+}
+const newScene = () => Object.fromEntries(SCENE.map(p => [p.id, { lv: 0, look: 0 }]));
 const curIcon = star => star ? '⭐' : '💰';
-const effText = (d, lv) => `${d.label} ${d.sign}${Math.round(d.per * lv * 100)}%`;
 
 const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 8;
 // 設備價格配合魚價稍微調高，但維持輕鬆：最貴的擴充約是中後期一隻魚的價格
@@ -332,15 +885,17 @@ let state;
 function newState() {
   return {
     coins: 100, capLv: 0, feederLv: 0, snailLv: 0, food: 'basic',
-    bg: 'fresh', ownedBg: ['fresh'], decorItems: [], slots: [null, null, null, null, null, null],
+    bg: 'fresh', ownedBg: ['fresh'], scene: newScene(),
     breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0,
     stars: 0, starEarned: 0, starOwned: [], starShown: [],
   };
 }
 let pellets = [], particles = [], texts = [], bubbles = [], starFish = [], releasing = [], coinFx = [];
-let mode = 'feed', tab = 'shop', selSlot = 0, selFishId = null, B = {};
+let mode = 'feed', tab = 'shop', selFishId = null, B = {};
 let snail = { x: 500, dir: 1 }, feederT = 0, T = 0;
 const capacity = () => CAP_BASE + CAP_STEP * state.capLv;
+// 魚店顯示到哪一種：曾經擁有過的最高級魚往後 3 種
+const shopLimit = () => Math.min(SPECIES.length - 1, Math.max(state.maxTier || 0, ...state.fish.map(f => SP[f.sp].tier)) + 3);
 
 function spawnFish(sp, x, y, growth, hunger = 70) {
   const f = {
@@ -354,14 +909,14 @@ function spawnFish(sp, x, y, growth, hunger = 70) {
 
 function calcBonus() {
   const b = { value: BG[state.bg].bonus, drop: 0, hunger: 0, breed: 0, growth: 0, offline: 0 };
-  for (const uid of state.slots) {
-    const it = uid && itemById(uid); if (!it) continue;
-    const d = DC[it.type], amt = d.per * it.lv;
-    if (d.eff === 'all') for (const k in b) b[k] += amt; else b[d.eff] += amt;
+  // 造景的功能取最高等級（跟目前選的外觀無關）
+  for (const p of SCENE) {
+    const lv = state.scene[p.id].lv; if (!lv) continue;
+    const amt = p.per[lv - 1];
+    if (p.eff === 'all') for (const k in b) b[k] += amt; else b[p.eff] += amt;
   }
   B = { value: 1 + b.value, drop: 1 + b.drop, breed: 1 + b.breed, growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger), raw: b };
 }
-const itemById = uid => state.decorItems.find(i => i.uid === uid);
 
 // ====== 存檔 ======
 function save() {
@@ -377,19 +932,46 @@ function load(fromCode) {
       Object.assign(state, s);
       state.fish = (s.fish || []).filter(f => SP[f.sp]);
       state.treasures = (s.treasures || []).filter(t => TREASURE[t.type]);
-      state.decorItems = (s.decorItems || []).filter(i => DC[i.type]);
+      state.scene = newScene();
+      for (const id in s.scene || {}) if (SCN[id]) { const lv = clamp(s.scene[id].lv | 0, 0, 5); state.scene[id] = { lv, look: clamp(s.scene[id].look | 0, 0, lv) }; }
+      if (s.decorItems) migrateDecor(s.decorItems);
+      delete state.decorItems; delete state.slots;
       state.starOwned = (state.starOwned || []).filter(id => SSP[id]);
       state.starShown = (state.starShown || []).filter(id => state.starOwned.includes(id)).slice(0, MAX_SHOWN);
       state.ownedBg = (state.ownedBg || ['fresh']).filter(id => BG[id]);
       if (!BG[state.bg]) state.bg = 'fresh';
       if (!FD[state.food]) state.food = 'basic';
-      if (!Array.isArray(state.slots) || state.slots.length !== 6) state.slots = [null, null, null, null, null, null];
       return;
     }
   } catch (e) { state = newState(); }
   // 新遊戲：送兩隻孔雀魚
   spawnFish('guppy', 400, 250, 1, 80);
   spawnFish('guppy', 600, 300, 1, 80);
+}
+
+// 舊版「擺飾」轉成新版「造景」：同類效果的擺飾換成對應的造景（取最高等級），重複的依原本賣價退還
+const OLD_DECOR = { plant: ['starfish', 100], mushroom: ['anemone', 200], moai: ['anemone', 800], coral: ['coral', 400], fountain: ['coral', 25000], anchor: ['ship', 1500],
+  castle: ['castle', 3000], ship: ['clam', 6000], temple: ['clam', 12000], torii: ['arch', 50000], starcrystal: ['crystal', 0] };
+let migrateNote = '';
+function migrateDecor(items) {
+  const best = {}, OLD_STAR = [15, 35, 75, 150, 300];
+  let coins = 0, stars = 0;
+  for (const it of items) { const m = OLD_DECOR[it.type]; if (!m) continue; const lv = clamp(it.lv | 0, 1, 5); if (!best[m[0]] || best[m[0]].lv < lv) best[m[0]] = { lv, it }; }
+  for (const it of items) {
+    const m = OLD_DECOR[it.type]; if (!m || (best[m[0]] && best[m[0]].it === it)) continue;
+    const lv = clamp(it.lv | 0, 1, 5);
+    if (m[0] === 'crystal') stars += Math.floor(OLD_STAR[lv - 1] / 2); else coins += Math.floor(m[1] * Math.pow(4, lv - 1) / 2);
+  }
+  const names = [];
+  for (const id in best) { const lv = Math.max(state.scene[id].lv, best[id].lv); state.scene[id] = { lv, look: lv }; names.push(`${SCN[id].name} Lv.${lv}`); }
+  state.coins += coins; state.stars += stars;
+  if (names.length || coins || stars) migrateNote = `🪸 「擺飾」改版成「造景」了！
+每個造景都有固定的位置，會跟背景融為一體。
+
+你原本的擺飾已經換成：
+${names.join('、') || '（無）'}${coins || stars ? `
+
+重複的擺飾退還：${coins ? '💰' + fmt(coins) : ''}${stars ? ' ⭐' + stars : ''}` : ''}`;
 }
 
 // ====== 畫布 ======
@@ -406,7 +988,6 @@ function resize() {
   canvas.width = Math.max(1, Math.round(cw * dpr));
   canvas.height = Math.max(1, Math.round(ch * dpr));
   scale = canvas.width / W;
-  layoutSlots();
   if (state) {
     for (const f of [...state.fish, ...starFish]) { f.x = clamp(f.x, 30, W - 30); f.tx = clamp(f.tx, 40, W - 40); }
     for (const t of state.treasures) t.x = clamp(t.x, 20, W - 20);
@@ -432,6 +1013,7 @@ const THEME = {
 };
 let PLANTS = [];
 function buildBg() {
+  sceneLight(); sceneT = -1;
   bgCanvas.width = canvas.width; bgCanvas.height = canvas.height;
   const c = bgCanvas.getContext('2d'); c.setTransform(scale, 0, 0, scale, 0, 0);
   drawBgStatic(c, BG[state.bg]);
@@ -571,10 +1153,10 @@ function drawBgStatic(c, bg) {
   }
   c.strokeStyle = 'rgba(255,255,255,0.13)'; c.lineWidth = 1.5;
   for (let i = 0; i < 9; i++) { const y = FLOOR + 14 + r() * (H - FLOOR - 20), x = r() * W; c.beginPath(); c.moveTo(x, y); c.quadraticCurveTo(x + 30, y - 4, x + 60 + r() * 40, y); c.stroke(); }
-  // 前景石頭（放在擺飾位置之間，不擋住擺飾）
+  // 前景石頭（放在造景之間，不擋住造景）
   const rockCol = mixc(bright(hex(th.rock), 1.25), s1, .35);
   lpRock(c, r, 18, H - 8, 50, rockCol); lpRock(c, r, W - 14, H - 4, 60, rockCol);
-  lpRock(c, r, W * .18, H - 14, 16, rockCol); lpRock(c, r, W * .5, H - 10, 12, rockCol); lpRock(c, r, W * .82, H - 12, 15, rockCol);
+  lpRock(c, r, W * .335, H - 10, 12, rockCol); lpRock(c, r, W * .535, H - 8, 10, rockCol);
   // 四周微暗，視線集中在中間
   const vg = c.createRadialGradient(W / 2, H * .45, H * .35, W / 2, H * .45, W * .7); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,10,25,0.35)');
   c.fillStyle = vg; c.fillRect(0, 0, W, H);
@@ -688,6 +1270,8 @@ function lpTail(c, x, t, s, w) {
   c.save(); c.translate(x, 0); c.rotate(w * .75);
   let pts;
   if (t.type === 'fork') pts = [[0, -sp * .2], [-len * .55, -sp * .65], [-len, -sp], [-len * .78, -sp * .45], [-len * .58, 0], [-len * .78, sp * .45], [-len, sp], [-len * .55, sp * .65], [0, sp * .2]];
+  // 鯨豚的水平尾鰭：從側面看是向後展開的兩片，隨擺動上下拍水
+  else if (t.type === 'fluke') pts = [[0, -sp * .14], [-len * .5, -sp * .3], [-len * 1.05, -sp * .9], [-len * .95, -sp * .55], [-len * .72, -sp * .08], [-len * .72, sp * .08], [-len * .95, sp * .55], [-len * 1.05, sp * .9], [-len * .5, sp * .3], [0, sp * .14]];
   else if (t.type === 'round') { pts = [[0, -sp * .2]]; for (let k = 0; k <= 6; k++) { const a = Math.PI / 180 * (260 - 160 * k / 6); pts.push([-len * .5 + len * .55 * Math.cos(a), sp * Math.sin(a)]); } pts.push([0, sp * .2]); }
   else if (t.type === 'veil') pts = [[0, -sp * .2], [-len * .4, -sp * 1.05], [-len * .9, -sp * 1.12 + v], [-len * 1.18, -sp * .55 + v], [-len * 1.28, v * 1.1], [-len * 1.18, sp * .6 + v], [-len * .88, sp * 1.18 + v], [-len * .38, sp * 1.02], [0, sp * .2]];
   else { pts = [[0, -sp * .2]]; for (let k = 0; k <= 6; k++) { const q = k / 6; pts.push([-len * (.88 + .18 * Math.sin(Math.PI * q)), -sp + 2 * sp * q]); } pts.push([0, sp * .2]); }
@@ -869,6 +1453,223 @@ const MODELS = {
     paint: (c, L, Hh) => { const r = mulberry(31); for (let i = 0; i < 18; i++) blob(c, L, Hh, -.85 + r() * 1.6, -.75 + r() * .9, .02, .07, '#3a8ae8', 5, r()); },
     tail: { type: 'fork', len: .6, spread: .55, cols: ['#e8d040', '#ffe070'] },
     fins: [{ x0: .85, x1: -.9, y: .9, h: .3, back: .2, cols: ['#2a7ad0', '#1e7a62'] }, { dir: 1, x0: -.15, x1: -.9, h: .25, back: .2, cols: ['#e8d040', '#ffe070'] }, { kind: 'pec', x: .5, y: .45, len: .35, cols: ['#e8d040', '#fff0a0'] }],
+  },
+  // ---- 40 種魚改版新增 ----
+  goldfish: {
+    L: .62, H: .5, seed: 131, shape: { nose: .7, hump: .2, belly: 1.15, tail: .35 }, top: '#d8380e', mid: '#ff6a1e', belly: '#ffc48a', eye: [.66, -.2, .075, '#1a0a04'],
+    paint: (c, L, Hh) => { blob(c, L, Hh, .1, .6, .62, .45, 'rgba(255,240,220,0.75)', 7); blob(c, L, Hh, .5, -.15, .22, .3, 'rgba(255,210,140,0.5)', 5); },
+    tail: { type: 'veil', len: 1.0, spread: .85, cols: ['#ff7a2a', '#ffa860', '#ffe6d0'], alpha: .88 },
+    fins: [{ x0: .3, x1: -.55, h: .55, back: .5, cols: ['#ff7a2a', '#ffc090'], alpha: .9 }, { dir: 1, x0: -.1, x1: -.6, h: .35, back: .5, cols: ['#ff8a3a', '#ffd0a8'], alpha: .85 },
+      { kind: 'pec', x: .3, y: .45, len: .28, cols: ['#ffb080', '#ffe0c8'], alpha: .85 }],
+    extra: (c, s, w, f, L, Hh) => blush(c, L * .72, Hh * .15, s * .06),
+  },
+  puffer: {
+    L: .62, H: .52, seed: 137, shape: { nose: .85, hump: .1, belly: 1.12, tail: .3 }, top: '#8a7a3e', mid: '#d8c878', belly: '#fff8e0', eye: [.58, -.3, .09, '#141008'],
+    paint: (c, L, Hh) => { const r = mulberry(5); for (let i = 0; i < 16; i++) blob(c, L, Hh, -.8 + r() * 1.5, -.85 + r() * .9, .05, .09, '#5a4a22', 5, r()); blob(c, L, Hh, .1, .75, .85, .45, 'rgba(255,255,245,0.85)', 7); },
+    tail: { type: 'round', len: .32, spread: .3, cols: ['#c8b868', '#e8dca0'] },
+    fins: [{ x0: -.35, x1: -.7, h: .2, back: .1, cols: ['#c8b868', '#e8dca0'] }, { kind: 'pec', x: .2, y: .1, len: .24, cols: ['#e8dca0', '#fff4c8'], alpha: .85 }],
+    extra: (c, s, w, f, L, Hh) => {
+      c.fillStyle = 'rgba(110,90,40,0.85)';
+      for (let i = 0; i <= 10; i++) {
+        const a = Math.PI * (.32 + 1.36 * i / 10), nx = Math.cos(a), ny = Math.sin(a), x = nx * L * .93, y = ny * Hh * 1.02;
+        c.beginPath(); c.moveTo(x - ny * s * .025, y + nx * s * .025); c.lineTo(x + nx * s * .08, y + ny * s * .08); c.lineTo(x + ny * s * .025, y - nx * s * .025); c.fill();
+      }
+      blush(c, L * .62, Hh * .1, s * .07);
+    },
+  },
+  boxfish: {
+    L: .7, H: .42, seed: 139, shape: { nose: .95, hump: .45, belly: 1.0, tail: .45 }, top: '#e8b800', mid: '#ffd81a', belly: '#fff08a', eye: [.6, -.3, .08, '#141004'],
+    paint: (c, L, Hh) => { const r = mulberry(21); for (let i = 0; i < 16; i++) { const u = -.8 + r() * 1.45, v = -.8 + r() * 1.55; blob(c, L, Hh, u, v, .07, .11, '#1a1a22', 6); blob(c, L, Hh, u + .01, v - .02, .035, .055, '#ffffff', 5); } },
+    tail: { type: 'round', len: .35, spread: .32, cols: ['#ffd81a', '#fff08a'] },
+    fins: [{ x0: -.45, x1: -.75, h: .18, back: .1, cols: ['#ffd81a', '#fff08a'], alpha: .85 }, { kind: 'pec', x: .3, y: .25, len: .22, cols: ['#fff08a', '#ffffff'], alpha: .8 }],
+    extra: (c, s, w, f, L, Hh) => blush(c, L * .72, Hh * .15, s * .06),
+  },
+  butterfly: {
+    L: .66, H: .55, seed: 149, shape: { nose: .3, hump: .1, tail: .3 }, top: '#e8a800', mid: '#ffcc1a', belly: '#fff0a0', eye: [.64, -.2, .07, '#101010'],
+    paint: (c, L, Hh) => {
+      for (let k = 0; k < 6; k++) { const u = .3 - k * .22; polyFill(c, [[(u + .06) * L, -Hh * 1.1], [(u - .3) * L, Hh * 1.2], [(u - .34) * L, Hh * 1.2], [(u + .02) * L, -Hh * 1.1]], 'rgba(170,100,10,0.4)'); }
+      polyFill(c, [[L * .8, -Hh * 1.2], [L * .5, -Hh * 1.2], [L * .55, Hh * .1], [L * .78, Hh * .05]], '#15151a');
+      polyFill(c, [[L * .5, -Hh * 1.2], [L * .38, -Hh * 1.2], [L * .44, 0], [L * .55, Hh * .1]], '#ffffff');
+      blob(c, L, Hh, -.78, -.35, .12, .2, '#15151a', 6);
+    },
+    tail: { type: 'round', len: .36, spread: .38, cols: ['#ffcc1a', '#fff4c0'] },
+    fins: [{ x0: .3, x1: -.8, h: .38, back: .25, cols: ['#ffc81a', '#f0a000'], edge: '#15151a' }, { dir: 1, x0: .2, x1: -.8, h: .33, back: .25, cols: ['#ffc81a', '#f0a000'], edge: '#15151a' },
+      { kind: 'pec', x: .3, y: .3, len: .24, cols: ['#fff0a0', '#ffe070'], alpha: .85 }],
+    extra: (c, s, w, f, L, Hh) => { c.fillStyle = '#e8b000'; c.beginPath(); c.moveTo(L * .95, -Hh * .12); c.lineTo(L * 1.2, -Hh * .02); c.lineTo(L * .95, Hh * .12); c.fill(); },
+  },
+  mandarin: {
+    L: .78, H: .34, seed: 151, shape: { nose: .7, tail: .35 }, top: '#1a6a8a', mid: '#2a9aa8', belly: '#3ab0a0', eye: [.72, -.35, .085, '#401010'],
+    paint: (c, L, Hh) => {
+      const r = mulberry(33); c.lineJoin = 'round'; c.lineCap = 'round';
+      c.strokeStyle = '#ff8a2a'; c.lineWidth = 3.2;
+      for (let i = 0; i < 10; i++) { c.beginPath(); let x = -L + r() * L * 1.8, y = -Hh + r() * Hh * 2; c.moveTo(x, y); for (let j = 0; j < 4; j++) { x += (r() - .5) * L * .5; y += (r() - .5) * Hh * .8; c.lineTo(x, y); } c.stroke(); }
+      c.strokeStyle = '#3a5ae8'; c.lineWidth = 1.6;
+      for (let i = 0; i < 7; i++) { c.beginPath(); const x = -L + r() * L * 1.8, y = -Hh + r() * Hh * 2; c.moveTo(x, y); c.lineTo(x + L * .2, y + (r() - .5) * Hh); c.stroke(); }
+    },
+    tail: { type: 'round', len: .45, spread: .42, cols: ['#ff8a2a', '#2a6ad8', '#ff8a2a'], edge: '#1a3a8a' },
+    fins: [{ x0: .1, x1: -.7, h: .55, back: .3, cols: ['#ff7a2a', '#3a5ae8', '#ff9a3a'], edge: '#1a3a8a' }, { dir: 1, x0: -.05, x1: -.75, h: .3, back: .2, cols: ['#ff8a2a', '#2a8ad8'] },
+      { kind: 'pec', x: .35, y: .4, len: .34, cols: ['#ff9a3a', '#ffcf5a'], alpha: .9 }],
+  },
+  emperor: {
+    L: .72, H: .55, seed: 157, shape: { nose: .45, hump: .05 }, top: '#1a3a9a', mid: '#2a50c0', belly: '#3a5ab8', eye: [.66, -.2, .065, '#0a0a18'],
+    paint: (c, L, Hh) => {
+      for (let k = -5; k <= 5; k++) { const v = k * .2; polyFill(c, [[L * .45, (v - .035) * Hh], [-L * 1.05, (v - .035 + k * .02) * Hh], [-L * 1.05, (v + .035 + k * .02) * Hh], [L * .45, (v + .035) * Hh]], '#ffd84a'); }
+      polyFill(c, [[L * 1.1, -Hh * .5], [L * .72, -Hh * .5], [L * .72, Hh * .4], [L * 1.1, Hh * .6]], '#dfe8ff');
+      polyFill(c, [[L * .74, -Hh * 1.2], [L * .52, -Hh * 1.2], [L * .54, Hh * .15], [L * .72, Hh * .1]], '#101428');
+      polyFill(c, [[L * .52, -Hh * 1.2], [L * .45, -Hh * 1.2], [L * .48, Hh * .2], [L * .54, Hh * .15]], '#6ab8ff');
+      polyFill(c, [[L * .58, Hh * .1], [L * .2, Hh * .15], [L * .15, Hh * .6], [L * .52, Hh * .55]], '#101428');
+    },
+    tail: { type: 'round', len: .4, spread: .42, cols: ['#ffc81a', '#ffe060'] },
+    fins: [{ x0: .3, x1: -.62, h: .45, back: .6, cols: ['#2a50c0', '#ffd84a'] }, { dir: 1, x0: .2, x1: -.62, h: .4, back: .6, cols: ['#2a50c0', '#1a2a70'], edge: '#6ab8ff' },
+      { kind: 'pec', x: .25, y: .25, len: .26, cols: ['#3a60d0', '#6ab8ff'] }],
+  },
+  lionfish: {
+    L: .82, H: .38, seed: 163, shape: { nose: .5, hump: .2 }, top: '#8a1a10', mid: '#c83a22', belly: '#f4d0c0', eye: [.7, -.25, .07, '#200404'],
+    paint: (c, L, Hh) => { for (let k = 0; k < 9; k++) band(c, L, Hh, .75 - k * .21, .04, .12, '#fff2e8'); },
+    tail: { type: 'round', len: .45, spread: .38, cols: ['#f8e8e0', '#e8b0a0'], alpha: .8 },
+    // 張開的大片羽毛狀胸鰭
+    under: (c, s, w, f, L, Hh) => {
+      for (const k of [0, 1]) {
+        c.save(); c.translate(L * .3, Hh * .3); c.rotate(.5 + k * .45 + Math.sin(T * 2 + (f ? f.phase : 0) + k) * .12 + w);
+        for (let i = 0; i < 6; i++) {
+          const a = -.5 + i * .2, len = s * (.95 - Math.abs(i - 2.5) * .09);
+          c.fillStyle = i % 2 ? 'rgba(205,60,40,0.85)' : 'rgba(255,238,228,0.85)';
+          c.beginPath(); c.moveTo(0, 0); c.lineTo(-Math.cos(a) * len, Math.sin(a) * len - s * .04); c.lineTo(-Math.cos(a + .12) * len * .96, Math.sin(a + .12) * len * .96); c.closePath(); c.fill();
+        }
+        c.restore();
+      }
+    },
+    // 背上一根根的長刺
+    extra: (c, s, w, f, L, Hh) => {
+      c.lineCap = 'round';
+      for (let i = 0; i < 9; i++) {
+        const x = L * (.5 - i * .14), y = -Hh * .85, len = s * (.75 - Math.abs(i - 3) * .07), a = -1.25 - i * .06 + w * .5;
+        c.fillStyle = 'rgba(235,130,115,0.4)'; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * len * .7, y + Math.sin(a) * len * .7); c.lineTo(x - L * .14, y); c.fill();
+        c.strokeStyle = i % 2 ? 'rgba(255,240,235,0.95)' : 'rgba(190,40,30,0.95)'; c.lineWidth = Math.max(1, s * .03);
+        c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); c.stroke();
+      }
+    },
+  },
+  sunfish: {
+    L: .62, H: .62, seed: 167, shape: { nose: .7, hump: 0, belly: 1.0, tail: .7 }, top: '#6a7a8a', mid: '#a8b8c4', belly: '#e8eef2', eye: [.62, -.2, .075, '#101418'],
+    paint: (c, L, Hh) => { const r = mulberry(8); for (let i = 0; i < 12; i++) blob(c, L, Hh, -.7 + r() * 1.3, -.6 + r() * 1.3, .06, .06, 'rgba(255,255,255,0.35)', 5, r()); },
+    tail: { type: 'round', len: .22, spread: .62, cols: ['#98a8b4', '#c8d4dc'] },
+    fins: [{ x0: -.35, x1: -.75, h: .85, back: .15, cols: ['#8a9aa8', '#b8c8d4'] }, { dir: 1, x0: -.35, x1: -.75, h: .85, back: .15, cols: ['#8a9aa8', '#b8c8d4'] },
+      { kind: 'pec', x: .3, y: .05, len: .2, cols: ['#b8c8d4', '#dce4ea'] }],
+    extra: (c, s, w, f, L, Hh) => {
+      blush(c, L * .6, Hh * .1, s * .08);
+      c.strokeStyle = 'rgba(60,70,80,0.8)'; c.lineWidth = Math.max(1, s * .025); c.beginPath(); c.arc(L * .93, Hh * .08, s * .04, -.9, .9); c.stroke();
+    },
+  },
+  dolphin: {
+    L: 1.15, H: .3, seed: 173, shape: { nose: .5, hump: .35, belly: .95, tail: .16 }, top: '#4a6a8e', mid: '#8aa8c8', belly: '#eef4fa', eye: [.6, -.12, .055, '#0a1420'],
+    paint: (c, L, Hh) => { polyFill(c, [[L * 1.1, Hh * .25], [L * .3, Hh * .15], [-L * .4, Hh * .35], [-L * 1.1, Hh * .5], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(245,250,255,0.9)'); },
+    tail: { type: 'fluke', len: .5, spread: .38, cols: ['#5a7aa0', '#7a98bc'] },
+    fins: [{ x0: .05, x1: -.3, h: .38, back: .9, cols: ['#4a6a8e', '#6a8aae'] }, { kind: 'pec', x: .45, y: .45, len: .32, cols: ['#6a8aae', '#8aa8c8'] }],
+    // 長長的嘴和微笑
+    extra: (c, s, w, f, L, Hh) => {
+      polyFill(c, [[L * .95, -Hh * .2], [L * 1.28, Hh * .02], [L * 1.26, Hh * .2], [L * .95, Hh * .3]], '#7e9cbe');
+      polyFill(c, [[L * .95, Hh * .08], [L * 1.26, Hh * .12], [L * 1.26, Hh * .2], [L * .95, Hh * .3]], '#eef4fa');
+      c.strokeStyle = 'rgba(40,60,90,0.7)'; c.lineWidth = Math.max(1, s * .02); c.beginPath(); c.moveTo(L * 1.24, Hh * .1); c.quadraticCurveTo(L * 1.05, Hh * .2, L * .88, Hh * .05); c.stroke();
+      blush(c, L * .72, Hh * .15, s * .06);
+    },
+  },
+  sailfish: {
+    L: 1.25, H: .26, seed: 177, shape: { nose: .45, hump: .3, tail: .2 }, top: '#12306a', mid: '#3a6ab0', belly: '#e8f0f8', eye: [.72, -.15, .055, '#060c18'], nx: 10,
+    paint: (c, L, Hh) => { polyFill(c, [[L * 1.1, Hh * .1], [-L * 1.1, Hh * .2], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(235,242,250,0.9)'); for (let u = -.8; u < .5; u += .16) band(c, L, Hh, u, .018, 0, 'rgba(120,200,255,0.6)'); },
+    tail: { type: 'fork', len: .7, spread: .7, cols: ['#12306a', '#2a58a0'] },
+    fins: [{ x0: .6, x1: -.55, h: 1.15, back: .5, cols: ['#1a3a8a', '#2a6ad8', '#1a3a8a'], alpha: .92 }, { dir: 1, x0: -.3, x1: -.6, h: .25, back: .3, cols: ['#12306a', '#3a6ab0'] },
+      { kind: 'pec', x: .5, y: .5, len: .35, cols: ['#2a58a0', '#5a8ad0'] }],
+    extra: (c, s, w, f, L, Hh) => {
+      polyFill(c, [[L * .98, -Hh * .25], [L * 1.7, -Hh * .05], [L * .98, Hh * .15]], '#2a3e5e');
+      c.fillStyle = 'rgba(20,30,60,0.6)'; for (let i = 0; i < 7; i++) { circle(c, L * (.4 - i * .14), -Hh * (1.9 - Math.abs(i - 2) * .12), s * .03); c.fill(); }
+    },
+  },
+  orca: {
+    L: 1.3, H: .36, seed: 179, shape: { nose: .8, hump: .35, belly: .98, tail: .16 }, top: '#0e1016', mid: '#161820', belly: '#20232c', eye: [.66, -.08, .05, '#000000'],
+    paint: (c, L, Hh) => {
+      polyFill(c, [[L * 1.1, Hh * .3], [L * .5, Hh * .45], [L * .1, Hh * .5], [-L * .3, Hh * .35], [-L * .55, Hh * .1], [-L * .45, Hh * .55], [-L * .1, Hh * 1.3], [L * 1.1, Hh * 1.3]], '#f4f6f8');
+      blob(c, L, Hh, .48, -.32, .16, .14, '#f4f6f8', 7, .3);
+      polyFill(c, [[-L * .05, -Hh * .95], [-L * .35, -Hh * .9], [-L * .3, -Hh * .6], [-L * .02, -Hh * .7]], 'rgba(200,205,215,0.55)');
+    },
+    tail: { type: 'fluke', len: .5, spread: .42, cols: ['#12141a', '#262a34'] },
+    fins: [{ x0: .12, x1: -.2, h: .75, back: .3, cols: ['#0e1016', '#23262e'] }, { kind: 'pec', x: .45, y: .6, len: .42, cols: ['#161820', '#2a2d36'] }],
+    extra: (c, s, w, f, L, Hh) => blush(c, L * .74, Hh * .35, s * .06),
+  },
+  whaleshark: {
+    L: 1.35, H: .36, seed: 181, shape: { nose: 1.0, hump: .45, belly: .92, tail: .2 }, top: '#2a3e5a', mid: '#3e5878', belly: '#dfe8f0', eye: [.8, -.02, .045, '#0a0f18'], nx: 10,
+    paint: (c, L, Hh) => {
+      polyFill(c, [[L * 1.1, Hh * .35], [0, Hh * .4], [-L * 1.1, Hh * .2], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(225,235,242,0.92)');
+      let row = 0; for (let v = -.85; v < .35; v += .22, row++) for (let u = -.9; u < .95; u += .13) blob(c, L, Hh, u + (row % 2) * .065, v, .022, .06, 'rgba(240,248,255,0.85)', 5);
+      c.strokeStyle = 'rgba(220,235,250,0.4)'; c.lineWidth = 1.5; for (const v of [-.62, -.2]) { c.beginPath(); c.moveTo(-L, v * Hh); c.lineTo(L * .8, (v - .08) * Hh); c.stroke(); }
+    },
+    tail: { type: 'fork', len: .6, spread: .6, cols: ['#2a3e5a', '#3e5878'] },
+    fins: [{ x0: -.05, x1: -.4, h: .45, back: .4, cols: ['#2a3e5a', '#3e5878'] }, { dir: 1, x0: -.55, x1: -.75, h: .15, back: .2, cols: ['#2a3e5a', '#3e5878'] },
+      { kind: 'pec', x: .4, y: .55, len: .5, cols: ['#2a3e5a', '#3e5878'] }],
+    extra: (c, s, w, f, L, Hh) => { c.strokeStyle = 'rgba(15,25,40,0.7)'; c.lineWidth = Math.max(1, s * .025); c.beginPath(); c.moveTo(L * 1.0, Hh * .25); c.quadraticCurveTo(L * .85, Hh * .35, L * .7, Hh * .3); c.stroke(); },
+  },
+  humpback: {
+    L: 1.4, H: .38, seed: 191, shape: { nose: .75, hump: .3, belly: 1.0, tail: .15 }, top: '#2a3448', mid: '#3a4a64', belly: '#c8d4e2', eye: [.62, .05, .045, '#080c14'], nx: 10,
+    paint: (c, L, Hh) => {
+      polyFill(c, [[L * 1.1, Hh * .2], [L * .3, Hh * .35], [-L * .6, Hh * .5], [-L * 1.1, Hh * .4], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(215,225,238,0.9)');
+      c.strokeStyle = 'rgba(120,135,160,0.7)'; c.lineWidth = 1.5; for (let k = 0; k < 6; k++) { const y = Hh * (.45 + k * .1); c.beginPath(); c.moveTo(L * .95, y); c.lineTo(L * .05, y + Hh * .05); c.stroke(); }
+      const r = mulberry(4); for (let i = 0; i < 7; i++) blob(c, L, Hh, .55 + r() * .4, -.6 + r() * .5, .03, .05, 'rgba(20,28,40,0.7)', 5);
+    },
+    tail: { type: 'fluke', len: .6, spread: .5, cols: ['#2a3448', '#8a9ab4'] },
+    fins: [{ x0: -.3, x1: -.45, h: .18, back: .5, cols: ['#2a3448', '#3a4a64'] }, { kind: 'pec', x: .35, y: .7, len: 1.05, cols: ['#e8eef6', '#aab8cc'] }],
+    extra: (c, s, w, f, L, Hh) => blush(c, L * .74, Hh * .3, s * .06),
+  },
+  fairybetta: {
+    L: .72, H: .3, seed: 193, top: '#f0d8ff', mid: '#ffffff', belly: '#ffffff', eye: [.72, -.12, .07, '#301040'], glow: '#ffb8f0',
+    paint: (c, L, Hh) => hGrad(c, L, Hh, ['#ffd0f0', '#e8d0ff', '#c0e8ff', '#b0f0e8'], .6),
+    // 身後飄著兩條羽衣彩帶
+    under: (c, s, w, f, L, Hh) => {
+      c.save(); c.translate(-L * .2, Hh * .5); const ph = f ? f.phase : 0;
+      for (const k of [0, 1]) ribbon(c, [0, 1, 2, 3, 4, 5, 6].map(j => [-s * .3 * j, s * (.2 + j * .12) * (k ? 1 : -.35) + Math.sin(T * 1.8 + j * .8 + k * 2 + ph) * s * .1 * j / 6 + w * s * j * .3]), s * .09, k ? '#c8a8ff' : '#ffa8e0', .75);
+      c.restore();
+    },
+    tail: { type: 'veil', len: 1.6, spread: 1.25, cols: ['#ffc8f0', '#e0b8ff', '#a8d8ff', '#b8fff0'], alpha: .82 },
+    fins: [{ x0: .1, x1: -.9, h: 1.0, back: 1.1, cols: ['#ffd0f4', '#d0b8ff', '#a8e8ff'], alpha: .82 }, { dir: 1, x0: .35, x1: -.9, h: 1.05, back: 1.2, cols: ['#ffd0f4', '#c8b0ff', '#a8f0e8'], alpha: .82 },
+      { kind: 'pec', x: .35, y: .35, len: .4, cols: ['#ffffff', '#ffc8f0'], alpha: .85 }],
+    extra: (c, s, w, f, L, Hh) => { for (let i = 0; i < 6; i++) { const a = T * 1.5 + i * 1.05; c.fillStyle = `rgba(255,255,255,${.5 + .5 * Math.sin(T * 4 + i)})`; star4(c, -L * 1.5 + Math.cos(a) * s * .5, Math.sin(a * 1.3) * s * .6, s * .05); } },
+  },
+  narwhal: {
+    L: 1.2, H: .36, seed: 197, shape: { nose: .9, hump: .4, belly: 1.0, tail: .16 }, top: '#b8c4e8', mid: '#e4e8fa', belly: '#ffffff', eye: [.66, -.05, .05, '#1a1a40'], glow: '#d8e0ff',
+    paint: (c, L, Hh) => {
+      hGrad(c, L, Hh, ['rgba(255,215,250,0.55)', 'rgba(210,220,255,0)', 'rgba(170,200,255,0.5)']);
+      const r = mulberry(12); for (let i = 0; i < 18; i++) blob(c, L, Hh, -.9 + r() * 1.5, -.9 + r() * .8, .025, .05, 'rgba(140,150,210,0.45)', 5, r());
+    },
+    tail: { type: 'fluke', len: .5, spread: .42, cols: ['#c8d0f0', '#f0e0ff'] },
+    fins: [{ kind: 'pec', x: .45, y: .55, len: .34, cols: ['#d8dcf4', '#f4ecff'] }],
+    // 螺旋長角，尖端閃著星光
+    extra: (c, s, w, f, L, Hh) => {
+      const x0 = L * .92, y0 = -Hh * .28, len = s * 1.3, tw = (Math.sin(T * 3) + 1) / 2;
+      c.save(); c.shadowColor = '#fff0a0'; c.shadowBlur = 14;
+      polyFill(c, [[x0, y0 - s * .05], [x0 + len, y0 - s * .25], [x0, y0 + s * .05]], '#fff4d0');
+      c.restore();
+      c.strokeStyle = 'rgba(210,170,90,0.9)'; c.lineWidth = 1.2;
+      for (let k = 1; k < 8; k++) { const t = k / 8, x = x0 + len * t, y = y0 - s * .25 * t, hw = s * .05 * (1 - t); c.beginPath(); c.moveTo(x - s * .03, y + hw); c.lineTo(x + s * .03, y - hw); c.stroke(); }
+      c.fillStyle = `rgba(255,255,220,${.55 + .45 * tw})`; star4(c, x0 + len, y0 - s * .25, s * (.07 + .07 * tw));
+      blush(c, L * .72, Hh * .3, s * .06);
+    },
+  },
+  aurorawhale: {
+    L: 1.45, H: .4, seed: 199, shape: { nose: .85, hump: .35, belly: 1.0, tail: .15 }, top: '#0a1a4a', mid: '#1a3a8a', belly: '#7ac8e8', eye: [.64, 0, .05, '#e8fbff'], nx: 10,
+    glow: () => `hsl(${160 + Math.sin(T * .7) * 60},90%,65%)`,
+    paint: (c, L, Hh) => {
+      polyFill(c, [[L * 1.1, Hh * .25], [0, Hh * .4], [-L * 1.1, Hh * .35], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(170,235,255,0.55)');
+      for (const [v, col] of [[-.55, 'rgba(90,255,190,0.55)'], [-.3, 'rgba(120,170,255,0.5)'], [-.05, 'rgba(210,130,255,0.45)']])
+        polyFill(c, [[L * .9, (v - .06) * Hh], [0, (v - .12) * Hh], [-L * 1.1, (v + .05) * Hh], [-L * 1.1, (v + .16) * Hh], [0, (v + .02) * Hh], [L * .9, (v + .05) * Hh]], col);
+    },
+    // 身後飄著三條極光彩帶
+    under: (c, s, w, f, L, Hh) => {
+      const h0 = 150 + Math.sin(T * .5) * 40; c.save(); c.translate(L * .1, -Hh * .7);
+      for (const k of [0, 1, 2]) ribbon(c, [0, 1, 2, 3, 4, 5].map(j => [-s * (.28 + k * .04) * j, -s * (.06 + k * .09) * j - Math.sin(T * 1.4 + j * .8 + k * 1.3) * s * .1 * j / 5 + w * s * j * .2]), s * (.12 - k * .02), hsl((h0 + k * 55) % 360, .85, .65), .5);
+      c.restore();
+    },
+    tail: { type: 'fluke', len: .65, spread: .55, cols: ['#1a3a8a', '#5ae8c8', '#b88aff'] },
+    fins: [{ x0: -.2, x1: -.4, h: .2, back: .5, cols: ['#1a3a8a', '#5ae8c8'] }, { kind: 'pec', x: .35, y: .65, len: .8, cols: ['#3a6ad0', '#8af0e0', '#c8a8ff'], alpha: .92 }],
+    extra: (c, s, w, f, L, Hh) => GALAXY_DOTS.forEach(([x, y, r], i) => { c.fillStyle = `rgba(230,255,255,${.4 + .6 * Math.sin(T * 2.5 + i)})`; circle(c, x * L * .95, y * Hh * .9 - Hh * .15, r * Hh * .8 + .6); c.fill(); }),
   },
   // ---- 夢幻魚 ----
   phoenix: {
@@ -1079,6 +1880,127 @@ function drawDragon(c, s, w, e, f) {
   lpEye(c, s * .95, -s * .08, s * .065 * e, '#062a18');
 }
 
+// 四角星形的閃光
+function star4(c, x, y, r) {
+  c.beginPath(); c.moveTo(x, y - r); c.lineTo(x + r * .28, y - r * .28); c.lineTo(x + r, y); c.lineTo(x + r * .28, y + r * .28);
+  c.lineTo(x, y + r); c.lineTo(x - r * .28, y + r * .28); c.lineTo(x - r, y); c.lineTo(x - r * .28, y - r * .28); c.closePath(); c.fill();
+}
+// 沿著一串點、依每一點的寬度畫出管狀身體（左右兩片深淺不同）
+function tube(c, pts, ws, col, alpha = 1) {
+  const n = pts.length - 1, L = [], R = [], base = Array.isArray(col) ? col : hex(col);
+  for (let i = 0; i <= n; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy) || 1, w = ws[i];
+    L.push([pts[i][0] - dy / d * w, pts[i][1] + dx / d * w]); R.push([pts[i][0] + dy / d * w, pts[i][1] - dx / d * w]);
+  }
+  for (let i = 0; i < n; i++) {
+    polyFill(c, [pts[i], L[i], L[i + 1], pts[i + 1]], css(bright(base, .86), alpha));
+    polyFill(c, [pts[i], R[i], R[i + 1], pts[i + 1]], css(bright(base, 1.1), alpha));
+  }
+  return { L, R };
+}
+// 海馬：直立的身體、捲起來的尾巴、長長的嘴和頭冠
+function drawSeahorse(c, s, w, e, f) {
+  const ph = f ? f.phase : 0, bob = Math.sin(T * 2 + ph) * .06;
+  c.save(); c.rotate(bob);
+  // 背鰭（快速拍動的小扇子）
+  const fl = Math.sin(T * 14 + ph) * .25;
+  c.save(); c.translate(-s * .02, s * .1); c.rotate(-.3 + fl);
+  polyFin(c, 0, 0, [[0, -s * .12], [-s * .22, -s * .1], [-s * .26, s * .02], [-s * .2, s * .12], [0, s * .1]], ['#ffe08a', '#ffc860'], .8);
+  c.restore();
+  const spine = [[s * .14, -s * .42], [s * .06, -s * .2], [s * .1, s * .04], [s * .06, s * .28], [-s * .04, s * .48], [-s * .1, s * .64], [-s * .06, s * .8], [s * .06, s * .86], [s * .15, s * .8], [s * .14, s * .7], [s * .06, s * .68]];
+  const ws = [s * .12, s * .15, s * .18, s * .15, s * .11, s * .08, s * .06, s * .05, s * .04, s * .03, s * .02];
+  const { L, R } = tube(c, spine, ws, '#f4a634');
+  c.strokeStyle = 'rgba(160,80,10,0.45)'; c.lineWidth = Math.max(1, s * .02);
+  for (let i = 1; i < spine.length - 1; i++) { c.beginPath(); c.moveTo(...L[i]); c.lineTo(...R[i]); c.stroke(); }
+  // 肚子比較淺
+  polyFill(c, [[s * .2, -s * .18], [s * .26, s * .05], [s * .2, s * .28], [s * .12, s * .3], [s * .16, s * .05], [s * .12, -s * .16]], 'rgba(255,230,170,0.85)');
+  // 頭：往前伸的長嘴
+  const HD = [[s * .02, -s * .5], [s * .1, -s * .66], [s * .24, -s * .66], [s * .34, -s * .56], [s * .62, -s * .54], [s * .64, -s * .46], [s * .32, -s * .44], [s * .22, -s * .34], [s * .06, -s * .36]], HC = [s * .2, -s * .5];
+  const hc = ['#f0a030', '#ffc050', '#ffd070', '#f8b040', '#e89020', '#f09a28', '#e08818', '#ea9624', '#f4a634'];
+  HD.forEach((p, i) => { const q = HD[(i + 1) % HD.length]; lpTri(c, HC, p, q, hc[i]); });
+  // 頭冠
+  c.fillStyle = '#ffd070';
+  for (let k = 0; k < 3; k++) { const x = s * (.08 + k * .06); c.beginPath(); c.moveTo(x, -s * .63); c.lineTo(x + s * .02, -s * (.76 - k * .02)); c.lineTo(x + s * .05, -s * .64); c.fill(); }
+  c.fillStyle = 'rgba(255,255,255,0.7)'; for (const [x, y] of [[.1, -.1], [.02, .15], [-.02, .4], [.16, -.3]]) { circle(c, x * s, y * s, s * .025); c.fill(); }
+  lpEye(c, s * .24, -s * .54, s * .06 * e, '#1a0e04');
+  blush(c, s * .3, -s * .45, s * .05);
+  c.restore();
+}
+// 海龜：多邊形龜殼、左右划動的鰭狀腳
+function drawTurtle(c, s, w, e, f) {
+  const fl = Math.sin(T * 2.2 + (f ? f.phase : 0));
+  const flip = (x, y, len, wid, ang, col) => {
+    c.save(); c.translate(x, y); c.rotate(ang);
+    polyFill(c, [[0, -wid * .5], [-len * .5, -wid * .6], [-len, 0], [-len * .45, wid * .4], [0, wid * .5]], col);
+    polyFill(c, [[0, 0], [-len, 0], [-len * .45, wid * .4], [0, wid * .5]], css(bright(hex(col), .85)));
+    c.restore();
+  };
+  // 遠側的鰭（顏色較深）
+  flip(-s * .45, s * .1, s * .32, s * .16, 2.6 + fl * .25, '#4e7040');
+  flip(s * .3, s * .08, s * .55, s * .22, 2.2 - fl * .45, '#4e7040');
+  // 頭
+  const HD = [[s * .58, -s * .1], [s * .8, -s * .16], [s * .98, -s * .08], [s * 1.0, s * .06], [s * .82, s * .12], [s * .6, s * .1]];
+  polyFill(c, HD, '#8ab06a'); polyFill(c, [[s * .6, s * .02], [s * 1.0, s * .02], [s * .82, s * .12], [s * .6, s * .1]], '#6e9452');
+  c.fillStyle = 'rgba(60,90,40,0.5)'; for (const [x, y] of [[.72, -.1], [.82, -.04], [.7, 0]]) { circle(c, x * s, y * s, s * .025); c.fill(); }
+  // 龜殼：外框 + 中間一排六角形紋
+  const SH = [[-s * .72, s * .06], [-s * .6, -s * .24], [-s * .3, -s * .42], [s * .1, -s * .46], [s * .45, -s * .32], [s * .64, -s * .06], [s * .6, s * .12], [-s * .6, s * .14]], SC0 = [0, -s * .12];
+  const sc = ['#7a5a2a', '#9a7236', '#b08440', '#a07a38', '#8a6630', '#6e5024', '#5e4420', '#6a4c22'];
+  SH.forEach((p, i) => { const q = SH[(i + 1) % SH.length]; lpTri(c, SC0, p, q, sc[i]); });
+  polyFill(c, [[-s * .66, s * .1], [s * .62, s * .08], [s * .56, s * .18], [-s * .58, s * .2]], '#e8d49a');
+  const hexa = (x, y, r, col) => { c.fillStyle = col; c.beginPath(); for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; c.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * .75); } c.closePath(); c.fill(); };
+  for (const [x, y, r] of [[-.36, -.14, .14], [0, -.22, .16], [.34, -.14, .13]]) { hexa(x * s, y * s, r * s, 'rgba(60,40,15,0.35)'); hexa(x * s, y * s, r * s * .78, 'rgba(210,170,90,0.5)'); }
+  // 近側的鰭
+  flip(-s * .4, s * .16, s * .32, s * .16, 2.3 - fl * .25, '#6e9452');
+  flip(s * .36, s * .16, s * .62, s * .24, 1.9 + fl * .45, '#7aa05c');
+  lpEye(c, s * .84, -s * .04, s * .05 * e, '#10180a');
+  blush(c, s * .88, s * .05, s * .04);
+}
+// 皇帶魚：長長的銀色身體像彩帶一樣擺動，紅色背鰭一路延伸，頭上有紅色冠羽
+function drawOarfish(c, s, w, e, f) {
+  const ph = f ? f.phase : 0, n = 16, pts = [];
+  for (let i = 0; i <= n; i++) { const u = i / n; pts.push([s * .9 - u * s * 3.4, Math.sin(T * 2.5 - u * 6 + ph) * s * .22 * (.15 + u)]); }
+  for (let i = 1; i < n; i++) {
+    const [x, y] = pts[i], [x2, y2] = pts[i + 1], k = 1 - i / n * .6;
+    polyFill(c, [[x, y - s * .09 * k], [x2, y2 - s * .09 * k], [x - s * .06, y - s * .26 * k]], i % 2 ? 'rgba(255,60,80,0.9)' : 'rgba(255,120,100,0.9)');
+  }
+  const ws = pts.map((_, i) => s * (.15 - .12 * i / n));
+  const { L, R } = tube(c, pts, ws, '#e4eaf2');
+  c.strokeStyle = 'rgba(120,150,200,0.45)'; c.lineWidth = Math.max(1, s * .02);
+  c.beginPath(); pts.forEach(([x, y], i) => i ? c.lineTo(x, y + s * .03) : c.moveTo(x, y + s * .03)); c.stroke();
+  for (let i = 2; i < n; i += 2) { c.fillStyle = `rgba(255,255,255,${.4 + .4 * Math.sin(T * 3 + i)})`; star4(c, pts[i][0], pts[i][1] - s * .04, s * .05); }
+  // 頭與冠羽
+  const [hx, hy] = pts[0];
+  polyFill(c, [[hx - s * .1, hy - s * .15], [hx + s * .25, hy - s * .08], [hx + s * .3, hy + s * .04], [hx - s * .1, hy + s * .15]], '#f0f4fa');
+  c.lineCap = 'round';
+  for (let k = 0; k < 4; k++) {
+    const sw = Math.sin(T * 3 + k + ph) * s * .1;
+    c.strokeStyle = k % 2 ? 'rgba(255,90,100,0.95)' : 'rgba(255,50,70,0.95)'; c.lineWidth = Math.max(1.5, s * (.05 - k * .008));
+    c.beginPath(); c.moveTo(hx + s * .05 - k * s * .05, hy - s * .12); c.quadraticCurveTo(hx - s * (.1 + k * .1), hy - s * (.6 + k * .05) + sw, hx - s * (.45 + k * .12), hy - s * (.5 - k * .05) + sw * 1.4); c.stroke();
+  }
+  lpEye(c, hx + s * .14, hy - s * .03, s * .055 * e, '#1a1a30');
+}
+// 海天使：透明的身體、拍動的小翅膀、裡面有一顆發光的橘紅色心
+function drawSeaAngel(c, s, w, e, f) {
+  const ph = f ? f.phase : 0, fl = Math.sin(T * 5 + ph);
+  c.save(); c.shadowColor = '#bfe8ff'; c.shadowBlur = 16;
+  for (const d of [-1, 1]) {
+    const tip = d * (s * .55 + fl * s * .2 * d);
+    polyFill(c, [[s * .28, d * s * .05], [s * .2, tip * .7], [s * .02, tip], [-s * .1, tip * .8], [s * .05, d * s * .08]], 'rgba(205,235,255,0.6)');
+  }
+  const B = [[s * .62, 0], [s * .5, -s * .2], [s * .25, -s * .24], [-s * .1, -s * .18], [-s * .45, -s * .08], [-s * .62, 0], [-s * .45, s * .08], [-s * .1, s * .18], [s * .25, s * .24], [s * .5, s * .2]], BC = [s * .05, 0];
+  B.forEach((p, i) => { const q = B[(i + 1) % B.length]; polyFill(c, [BC, p, q], `rgba(${215 + i * 4},${238 + (i % 3) * 5},255,${.5 + (i % 2) * .12})`); });
+  c.restore();
+  // 頭上兩個小角
+  c.fillStyle = 'rgba(225,245,255,0.8)';
+  for (const d of [-1, 1]) { c.beginPath(); c.moveTo(s * .5, d * s * .12); c.lineTo(s * .7, d * s * .22); c.lineTo(s * .58, d * s * .04); c.fill(); }
+  // 發光的心
+  const pulse = 1 + Math.sin(T * 3 + ph) * .12, hg = c.createRadialGradient(s * .05, 0, 0, s * .05, 0, s * .3 * pulse);
+  hg.addColorStop(0, 'rgba(255,120,60,0.95)'); hg.addColorStop(.45, 'rgba(255,90,90,0.55)'); hg.addColorStop(1, 'rgba(255,90,90,0)');
+  c.fillStyle = hg; circle(c, s * .05, 0, s * .3 * pulse); c.fill();
+  c.fillStyle = 'rgba(255,140,90,0.95)'; blob(c, 1, 1, s * .05, 0, s * .1, s * .07, 'rgba(255,130,80,0.95)', 6);
+  lpEye(c, s * .45, -s * .06, s * .035 * e, '#40202a'); lpEye(c, s * .45, s * .06, s * .035 * e, '#40202a');
+}
+
 function fishScale(f) { return getSp(f.sp).size * 1.4 * (0.45 + 0.55 * f.growth); }
 function drawFish(c, f, t, alpha = 1) {
   const sp = getSp(f.sp), s = fishScale(f);
@@ -1143,7 +2065,7 @@ function updateStarFish(f, dt) {
   f.dropT -= dt * B.drop;
   if (f.dropT <= 0) {
     f.dropT = sp.dropEvery * rand(.8, 1.2);
-    state.treasures.push({ x: f.x, y: f.y + 10, type: weighted(sp.pool), mult: sp.valueMult, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+    state.treasures.push({ x: f.x, y: f.y + 10, type: weighted(sp.pool), mult: sp.mult, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
   }
 }
 function syncStarFish() {
@@ -1186,7 +2108,7 @@ function updateFish(f, dt) {
       if (f.dropT <= 0) {
         f.dropT = sp.dropEvery * rand(.8, 1.2);
         const type = weighted(sp.pool);
-        state.treasures.push({ x: f.x, y: f.y + s * .3, type, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: sp.mult, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
       }
     }
   }
@@ -1290,9 +2212,14 @@ function drawDynamicBg() {
     }
     ctx.restore();
   }
+  // 後排的造景（城堡、拱門、沉船）在海草後面
+  drawScene(0);
   // 擺動的低多邊形海草：每一節分成深淺兩片三角形
   const [pc0, pc1] = th.plant.map(hex);
+  // 後排有擺出來的造景時，前面的海草先移開，才看得清楚
+  const back = SCENE.filter(p => !p.layer && state.scene[p.id].look).map(p => [scenePos(p).x, p.box[state.scene[p.id].look - 1][0] * sceneK(p) * .8]);
   for (const p of PLANTS) {
+    if (back.some(([x, hw]) => Math.abs(p.x - x) < hw)) continue;
     const n = 6, L = [], R = [];
     for (let k = 0; k <= n; k++) {
       const q = k / n, sway = Math.sin(T * 1.1 + p.ph + q * 1.8) * q * 26 + p.bend * q * q, x = p.x + sway, y = FLOOR + 6 - p.h * q, hw = p.w * Math.sin(Math.PI * (.18 + q * .72)) * (1 - q * .35);
@@ -1342,36 +2269,12 @@ function drawDynamicBg() {
   }
 }
 
-function drawDecor() {
-  for (let i = 0; i < 6; i++) {
-    const it = state.slots[i] && itemById(state.slots[i]), x = SLOT_X[i];
-    const showEmpty = mode === 'look' || (menuOpen && tab === 'decor');
-    if (!it) {
-      if (showEmpty) {
-        ctx.strokeStyle = i === selSlot && menuOpen && tab === 'decor' ? 'rgba(255,201,64,0.9)' : 'rgba(255,255,255,0.45)';
-        ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ell(ctx, x, SLOT_Y - 4, 40, 12); ctx.stroke(); ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('+', x, SLOT_Y - 4);
-      }
-      continue;
-    }
-    const d = DC[it.type], tier = TIERS[it.lv - 1], size = 46 + it.lv * 9;
-    const g = ctx.createRadialGradient(x, SLOT_Y - 4, 2, x, SLOT_Y - 4, 55); g.addColorStop(0, tier.c + (it.lv >= 3 ? 'aa' : '66')); g.addColorStop(1, tier.c + '00');
-    ctx.fillStyle = g; ell(ctx, x, SLOT_Y - 4, 55, 16); ctx.fill();
-    ctx.save();
-    if (it.lv >= 4) { ctx.shadowColor = tier.c; ctx.shadowBlur = 12 + Math.sin(T * 3) * 6; }
-    emoji(ctx, d.icon, x, SLOT_Y + 6, size, 'bottom');
-    ctx.restore();
-    if (menuOpen && tab === 'decor' && i === selSlot) { ctx.strokeStyle = 'rgba(255,201,64,0.9)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2; ell(ctx, x, SLOT_Y - 4, 48, 14); ctx.stroke(); ctx.setLineDash([]); }
-    if (it.lv >= 5 && Math.random() < .03) particles.push({ x: x + rand(-25, 25), y: SLOT_Y - rand(10, 50), vy: -15, life: 1.2, icon: '✨' });
-  }
-}
-
 function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(bgCanvas, 0, 0);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
   drawDynamicBg();
-  drawDecor();
+  drawScene(1);
   for (const p of pellets) {
     const fd = FD[p.food]; ctx.globalAlpha = p.floor > 9 ? (12 - p.floor) / 3 : 1;
     const pc = hex(fd.color), P = []; for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3 + p.seed; P.push([p.x + Math.cos(a) * fd.r, p.y + Math.sin(a) * fd.r]); }
@@ -1464,15 +2367,12 @@ canvas.addEventListener('pointerdown', e => {
     state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR))));
     return;
   }
-  // 查看模式：先找魚，再找擺飾位置
+  // 查看模式：先找魚，再找造景
   let hit = null, hd = 1e9;
   for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.4 + 8, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < s && d < hd) { hd = d; hit = f; } }
   if (hit) { selFishId = hit.id; updateFishCard(); return; }
-  if (!treasureAt(p, 60)) for (let i = 0; i < 6; i++) {
-    const it = state.slots[i] && itemById(state.slots[i]), dx = Math.abs(p.x - SLOT_X[i]);
-    const hitDecor = it ? dx < 34 && p.y > SLOT_Y - (40 + it.lv * 9) && p.y < SLOT_Y + 8 : dx < 36 && Math.abs(p.y - (SLOT_Y - 4)) < 16;
-    if (hitDecor) { selSlot = i; setTab('decor'); openMenu(); return; }
-  }
+  const pc = !treasureAt(p, 60) && sceneAt(p);
+  if (pc) { openScene(pc.id); return; }
   selFishId = null; updateFishCard();
 });
 canvas.addEventListener('pointermove', e => { if (!dragging && e.pointerType !== 'mouse') return; const t = treasureAt(worldPos(e), 24); if (t && (dragging || e.buttons === 0)) collectTreasure(t); });
@@ -1697,7 +2597,7 @@ $('#tabs').addEventListener('click', e => { const b = e.target.closest('button')
 function costBtn(act, arg, cost, label, extra = '', star = false) {
   return `<button data-act="${act}" data-arg="${arg}" data-cost="${cost}" ${star ? 'data-star="1" class="star"' : ''} ${extra}>${label} ${curIcon(star)}${fmt(cost)}</button>`;
 }
-// 說明用：平均每次、每分鐘能換到多少金幣（基本值，不含擺飾與背景加成）
+// 說明用：平均每次、每分鐘能換到多少金幣（基本值，不含造景與背景加成）
 function coinNote(pool, every, mult) {
   const per = avgTreasure(pool) * mult;
   return `💰 每 ${every} 秒產出約 ${fmt(per)} 金幣（每分鐘約 ${fmt(per * 60 / every)}）`;
@@ -1712,12 +2612,16 @@ function renderTab() {
     h += `<h3>🐟 魚店</h3><div class="capBox sticky"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
       ${full ? '<small style="color:var(--bad)">已滿，可到最下面「擴充水族箱」或賣掉、放生一些魚</small>' : n >= cap * .8 ? '<small style="color:var(--accent)">快滿了</small>' : ''}</div>
       <div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%;background:${capCol}"></i></div></div>`;
+    // 只顯示到「買過最高級的魚再往後 3 種」，更後面的先保密，買到了才會出現
+    const lim = shopLimit(), hidden = SPECIES.length - 1 - lim;
     for (const sp of SPECIES) {
+      if (sp.tier > lim) break;
       h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
         <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻</small>
-        <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, 1)}</small></div>
+        <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
         ${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}</div>`;
     }
+    if (hidden > 0) h += `<div class="card"><div class="ico">🔒</div><div class="info"><b>還有 ${hidden} 種更稀有的魚</b><small>買到更高級的魚，就會出現新的魚種（越後面越華麗夢幻）</small></div></div>`;
     h += `<h4>🔧 設備升級</h4>`;
     h += `<div class="card"><div class="ico">🫙</div><div class="info"><b>擴充水族箱</b><small>容量 ${capacity()} 隻${state.capLv < CAP_MAX_LV ? ` → ${capacity() + CAP_STEP} 隻` : '（已達上限）'}</small></div>
       ${state.capLv < CAP_MAX_LV ? costBtn('buyCap', '', capCost(state.capLv), '擴充') : '<button disabled>MAX</button>'}</div>`;
@@ -1736,23 +2640,10 @@ function renderTab() {
     h += `<div class="bonus">💡 小技巧：魚的飽食度 ≥ 40 的成魚，兩隻同種就會開始繁殖；飽食度歸零的魚不會長大、也不會產寶物。</div>`;
   } else if (tab === 'decor') {
     const r = B.raw;
-    h += `<h3>🪸 擺飾</h3><div class="bonus">目前加成：寶物價值 <b>+${Math.round(r.value * 100)}%</b>　產寶速度 <b>+${Math.round(r.drop * 100)}%</b><br>
-      成長速度 <b>+${Math.round(r.growth * 100)}%</b>　繁殖速度 <b>+${Math.round(r.breed * 100)}%</b>　飽食度消耗 <b>-${Math.round((1 - B.hunger) * 100)}%</b>　離線收益 <b>+${Math.round(r.offline * 100)}%</b></div>`;
-    h += `<h4>擺放位置（點選位置）</h4><div class="slots">`;
-    for (let i = 0; i < 6; i++) {
-      const it = state.slots[i] && itemById(state.slots[i]);
-      h += `<button class="slot ${i === selSlot ? 'sel' : ''}" data-act="selSlot" data-arg="${i}" style="${it ? `border-color:${TIERS[it.lv - 1].c}` : ''}">${it ? DC[it.type].icon : '＋'}<small>${it ? 'Lv.' + it.lv : '空'}</small></button>`;
-    }
-    h += `</div>`;
-    const cur = state.slots[selSlot] && itemById(state.slots[selSlot]);
-    if (cur) h += itemCard(cur, true);
-    else h += `<p class="hint">第 ${selSlot + 1} 格目前是空的，可以從下方背包放入，或直接在商店購買。</p>`;
-    const bag = state.decorItems.filter(i => !state.slots.includes(i.uid));
-    h += `<h4>🎒 背包（${bag.length}）</h4>`;
-    h += bag.length ? bag.map(it => itemCard(it, false)).join('') : '<p class="hint">背包是空的。</p>';
-    h += `<h4>🛒 擺飾商店</h4>`;
-    for (const d of DECOR) if (!d.star) h += decorShopCard(d);
-    h += `<p class="hint">⭐ 限定擺飾「星之水晶」在星願商店兌換。</p>`;
+    h += `<h3>🪸 造景</h3><div class="bonus">目前加成：寶物價值 <b>+${Math.round(r.value * 100)}%</b>　產寶速度 <b>+${Math.round(r.drop * 100)}%</b><br>
+      成長速度 <b>+${Math.round(r.growth * 100)}%</b>　繁殖速度 <b>+${Math.round(r.breed * 100)}%</b>　飽食度消耗 <b>-${Math.round((1 - B.hunger) * 100)}%</b>　離線收益 <b>+${Math.round(r.offline * 100)}%</b></div>
+      <p class="hint">每個造景都有固定的位置，會跟背景融為一體。升級會讓功能變強；外觀可以選自己喜歡的等級，功能一樣算最高等級。</p>`;
+    for (const p of SCENE) h += sceneCard(p);
   } else if (tab === 'bg') {
     h += `<h3>🖼️ 背景</h3><p class="hint">更漂亮的背景還會提高寶物價值！</p>`;
     for (const bg of BGS) {
@@ -1782,17 +2673,17 @@ function renderTab() {
       }
       h += `</div>`;
     }
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">點水族箱投放飼料；點或滑過寶物就能撿起來換金幣。<br>切到「🔍 查看」模式可以點魚看狀態，點沙地上的擺飾可以更換擺飾。</div>
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">點水族箱投放飼料；點或滑過寶物就能撿起來換金幣。<br>切到「🔍 查看」模式可以點魚看狀態，點造景可以升級或換外觀。</div>
       <h4>⚙️ 其他</h4>${persistNote()}<div class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:10px">${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
     h += `<h3>⭐ 星願商店</h3><div class="bonus">把魚「放生」回大海就能獲得星星，越高階的魚星星越多（未成年的魚星星較少）。<br>
-      ${SPECIES.map(sp => `${sp.name} ⭐${sp.stars}`).join('・')}<br>累計獲得 ⭐${fmt(state.starEarned)}</div>`;
+      ${SPECIES.filter(sp => sp.tier <= shopLimit()).map(sp => `${sp.name} ⭐${sp.stars}`).join('・')}<br>累計獲得 ⭐${fmt(state.starEarned)}</div>`;
     h += `<h4>🌟 夢幻魚（展示中 ${state.starShown.length}/${MAX_SHOWN}）</h4><p class="hint">每種只能兌換一隻，不用餵食、不佔水族箱空間，產出的寶物更值錢。水族箱最多同時放 ${MAX_SHOWN} 隻，可以自由選擇要放哪幾隻。</p>`;
     for (const sp of STARFISH) {
       const own = state.starOwned.includes(sp.id), shown = state.starShown.includes(sp.id);
       h += `<div class="card ${shown ? 'sel' : ''}"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
-        <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　寶物價值 ×${sp.valueMult}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.valueMult)}</small></div>
+        <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　寶物價值 ×${sp.valueMult}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
         ${!own ? costBtn('buyStarFish', sp.id, sp.cost, '兌換', '', true)
           : shown ? `<button class="on" data-act="toggleShow" data-arg="${sp.id}">收回</button>`
           : `<button data-act="toggleShow" data-arg="${sp.id}" ${state.starShown.length >= MAX_SHOWN ? 'disabled title="最多放 3 隻"' : ''}>放入</button>`}</div>`;
@@ -1804,35 +2695,30 @@ function renderTab() {
         <div class="info"><b>${bg.name}</b><small>寶物價值 +${Math.round(bg.bonus * 100)}%・會有流星劃過</small></div>
         ${on ? '<button class="on" disabled>使用中</button>' : own ? `<button data-act="useBg" data-arg="${bg.id}">使用</button>` : costBtn('buyBg', bg.id, bg.starPrice, '兌換', '', true)}</div>`;
     }
-    h += `<h4>💠 限定擺飾</h4>`;
-    for (const d of DECOR) if (d.star) h += decorShopCard(d);
-    h += `<p class="hint">買到的擺飾會放到「擺飾」分頁目前選取的位置（第 ${selSlot + 1} 格），有東西的話就放進背包。</p>`;
+    h += `<h4>💠 限定造景</h4>` + sceneCard(SCN.crystal);
   }
   tabEl.innerHTML = h;
   refreshAfford();
 }
-function decorShopCard(d) {
-  return `<div class="card"><div class="ico">${d.icon}</div><div class="info"><b>${d.name}</b><small>每級 ${d.label} ${d.sign}${Math.round(d.per * 100)}%</small>
-    <select data-tier="${d.id}">${TIERS.map((t, i) => `<option value="${i + 1}">Lv.${i + 1} ${t.n}（${curIcon(d.star)}${fmt(decorPrice(d, i + 1))}）</option>`).join('')}</select></div>
-    <button data-act="buyDecor" data-arg="${d.id}" data-cost="${decorPrice(d, 1)}" ${d.star ? 'data-star="1" class="star"' : ''}>${d.star ? '兌換' : '購買'}</button></div>`;
+// 造景卡片：預覽圖、目前等級與功能、下一級、外觀選擇
+function sceneCard(p) {
+  const st = state.scene[p.id], lv = st.lv, show = st.look || lv || 1;
+  const up = lv < 5 ? costBtn('upScene', p.id, scenePrice(p, lv + 1), lv ? '升級' : '購買', '', p.star) : '<button disabled>MAX</button>';
+  const looks = lv ? `<div class="looks"><span>外觀</span>${[1, 2, 3, 4, 5].map(n => n <= lv ? `<button class="chip ${st.look === n ? 'on' : ''}" data-act="lookScene" data-arg="${p.id}:${n}" aria-label="外觀 Lv.${n} ${p.lv[n - 1]}">${n}</button>` : `<button class="chip" disabled aria-label="尚未解鎖">${n}</button>`).join('')}<button class="chip ${st.look === 0 ? 'on' : ''}" data-act="lookScene" data-arg="${p.id}:0">隱藏</button></div>` : '<span></span>';
+  return `<div class="card scene ${selPiece === p.id ? 'sel' : ''}" id="sc-${p.id}"><div class="row top"><img class="thumb" src="${sceneThumb(p, show)}" alt="" style="${lv ? '' : 'opacity:.55'}">
+    <div class="info"><b>${p.icon} ${p.name}${lv ? ` <span class="tier">Lv.${lv}</span>` : ''}</b>
+    <small>${lv ? `「${p.lv[lv - 1]}」${sceneEff(p, lv)}` : '尚未擁有'}</small>
+    <small>${lv < 5 ? `下一級「${p.lv[lv]}」：${sceneEff(p, lv + 1)}` : '已經是最高等級 ✨'}</small></div></div>
+    <div class="row bottom">${looks}${up}</div></div>`;
 }
-function itemCard(it, inSlot) {
-  const d = DC[it.type], tier = TIERS[it.lv - 1];
-  const up = it.lv < 5 ? costBtn('upItem', it.uid, decorPrice(d, it.lv + 1) - decorPrice(d, it.lv), '升級', '', d.star) : '<button disabled>MAX</button>';
-  const act = inSlot ? `<button class="ghost" data-act="unplace" data-arg="${it.uid}">收回背包</button>`
-    : `<button data-act="place" data-arg="${it.uid}">放到第 ${selSlot + 1} 格</button><button class="ghost" data-act="sellItem" data-arg="${it.uid}">賣 ${curIcon(d.star)}${fmt(decorPrice(d, it.lv) / 2)}</button>`;
-  return `<div class="card ${inSlot ? 'sel' : ''}"><div class="ico">${d.icon}</div><div class="info"><b>${d.name} <span class="tier" style="color:${tier.c}">Lv.${it.lv} ${tier.n}</span></b>
-    <small>${effText(d, it.lv)}</small><div class="row" style="margin-top:4px">${up}${act}</div></div></div>`;
+function openScene(id) {
+  selPiece = id; setTab('decor'); openMenu();
+  const el = document.getElementById('sc-' + id); if (el) el.scrollIntoView({ block: 'center' });
 }
 function refreshAfford() {
   const full = state.fish.length >= capacity();
   tabEl.querySelectorAll('[data-cost]').forEach(b => { b.disabled = (b.dataset.star ? state.stars : state.coins) < +b.dataset.cost || (b.dataset.space && full); });
 }
-tabEl.addEventListener('change', e => {
-  const s = e.target.closest('select[data-tier]'); if (!s) return;
-  const btn = s.closest('.card').querySelector('button[data-act="buyDecor"]');
-  btn.dataset.cost = decorPrice(DC[s.dataset.tier], +s.value); refreshAfford();
-});
 let panelPressed = false;
 tabEl.addEventListener('pointerdown', () => panelPressed = true);
 window.addEventListener('pointerup', () => setTimeout(() => panelPressed = false, 50));
@@ -1847,6 +2733,7 @@ const ACTIONS = {
     if (state.fish.length >= capacity()) return toast('水族箱已滿！');
     if (!pay(SP[id].price)) return;
     const f = spawnFish(id, rand(100, W - 100), TOP, 0.4, 70); f.ty = rand(150, 400);
+    state.maxTier = Math.max(state.maxTier || 0, SP[id].tier);
     toast(`買了一隻${SP[id].name}「${f.name}」！`);
   },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
@@ -1855,25 +2742,14 @@ const ACTIONS = {
   selFood(id) { state.food = id; updateModeLabel(); toast(`改用${FD[id].name}`); },
   buyBg(id) { const bg = BG[id]; if (pay(bg.starPrice || bg.price, !!bg.starPrice)) { state.ownedBg.push(id); ACTIONS.useBg(id); } },
   useBg(id) { state.bg = id; buildBg(); calcBonus(); toast(`背景換成「${BG[id].name}」`); },
-  selSlot(i) { selSlot = +i; },
-  buyDecor(type) {
-    const sel = tabEl.querySelector(`select[data-tier="${type}"]`), lv = sel ? +sel.value : 1, d = DC[type];
-    if (!pay(decorPrice(d, lv), d.star)) return;
-    const it = { uid: 'd' + state.nextId++, type, lv }; state.decorItems.push(it);
-    if (!state.slots[selSlot]) { state.slots[selSlot] = it.uid; toast(`${d.name}放到第 ${selSlot + 1} 格`); }
-    else toast(`${d.name}已放進背包`);
-    calcBonus();
+  upScene(id) {
+    const p = SCN[id], st = state.scene[id]; if (st.lv >= 5) return;
+    if (!pay(scenePrice(p, st.lv + 1), p.star)) return;
+    const wasTop = st.look === st.lv; st.lv++; if (wasTop) st.look = st.lv; selPiece = id; sceneT = -1;
+    calcBonus(); toast(`${p.icon} ${p.name}升級到 Lv.${st.lv}「${p.lv[st.lv - 1]}」！`);
+    const { x, y } = scenePos(p); for (let i = 0; i < 8; i++) particles.push({ x: x + rand(-30, 30), y: y - rand(10, 60), vy: -rand(15, 40), life: 1.4, icon: '✨' });
   },
-  upItem(uid) {
-    const it = itemById(uid), d = DC[it.type]; if (it.lv >= 5) return;
-    if (pay(decorPrice(d, it.lv + 1) - decorPrice(d, it.lv), d.star)) { it.lv++; calcBonus(); toast(`${d.name}升級到 Lv.${it.lv} ${TIERS[it.lv - 1].n}！`); }
-  },
-  place(uid) { state.slots[selSlot] = uid; calcBonus(); },
-  unplace(uid) { const i = state.slots.indexOf(uid); if (i >= 0) state.slots[i] = null; calcBonus(); },
-  sellItem(uid) {
-    const it = itemById(uid), d = DC[it.type], v = Math.floor(decorPrice(d, it.lv) / 2);
-    state.decorItems.splice(state.decorItems.indexOf(it), 1); state[d.star ? 'stars' : 'coins'] += v; toast(`賣出${d.name}，獲得 ${curIcon(d.star)}${fmt(v)}`);
-  },
+  lookScene(arg) { const [id, n] = arg.split(':'), st = state.scene[id]; if (st && +n <= st.lv) { st.look = +n; selPiece = id; sceneT = -1; } },
   viewFish(id) { setMode('look'); selFishId = +id; closeMenu(); updateFishCard(); },
   sellFish(id) { sellFish(+id); },
   releaseFish(id) { releaseFish(+id); },
@@ -1923,11 +2799,10 @@ function frame(now) {
 // ====== 離線收益 ======
 // 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 2 小時；離開時不會肚子餓
 const OFFLINE_RATE = 0.3, OFFLINE_MAX_H = 2;
-const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
 function incomePerSec() {
   let v = 0;
-  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) / sp.dropEvery; }
-  for (const id of state.starShown) { const sp = SSP[id]; v += avgTreasure(sp.pool) * sp.valueMult / sp.dropEvery; }
+  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
+  for (const id of state.starShown) { const sp = SSP[id]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
   return v * B.value * B.drop;
 }
 function fmtDur(sec) {
@@ -2054,6 +2929,7 @@ load(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
+if (migrateNote) { ask(migrateNote, '好', null); migrateNote = ''; }
 // 一打開就申請存檔保護；有些瀏覽器要點過畫面才會同意，所以第一次點畫面時再申請一次
 requestPersist();
 document.addEventListener('pointerdown', () => { if (persistState !== 'granted') requestPersist(); }, { once: true });
