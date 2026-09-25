@@ -183,6 +183,7 @@ function weighted(pool) { let t = pool.reduce((s, p) => s + p[1], 0), r = Math.r
 
 // ====== 遊戲資料 ======
 const TREASURE = {
+  bubble:  { icon: '🫧', name: '泡泡珠',   value: 2 },
   coin:    { icon: '🔹', name: '海玻璃',   value: 5 },
   shell:   { icon: '🐚', name: '貝殼',     value: 12 },
   pearl:   { icon: '🦪', name: '珍珠貝',   value: 30 },
@@ -192,34 +193,37 @@ const TREASURE = {
   vase:    { icon: '🏺', name: '古董花瓶', value: 1200 },
   gold:    { icon: '💍', name: '寶石戒指', value: 3000 },
   relic:   { icon: '🏆', name: '傳說寶杯', value: 8000 },
+  key:     { icon: '🗝️', name: '黃金鑰匙', value: 20000 },
+  trident: { icon: '🔱', name: '海神三叉戟', value: 60000 },
+  orb:     { icon: '🔮', name: '龍宮寶珠', value: 150000 },
 };
 
-// 20 種魚，價格越後面漲越多（每級約 1.55 倍逐步增加到 2 倍）；寶物、成長、繁殖、放生星星等數值由 tierStats 依價位自動計算
+// 20 種魚，每級價格約 2.1 倍逐步增加到 2.5 倍，跳級要存很久；寶物、成長、繁殖、放生星星等數值由 tierStats 依價位自動計算
 const SPECIES = [
   { id: 'guppy',      name: '孔雀魚',       price: 20,    size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
-  { id: 'neon',       name: '霓虹燈魚',     price: 31,    size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
-  { id: 'clown',      name: '小丑魚',       price: 49,   size: 24, desc: '活潑可愛的人氣王', draw: drawClown },
-  { id: 'blueclown',  name: '藍色小丑魚',   price: 79,   size: 24, desc: '少見的藍色小丑魚', draw: draw_blueclown },
-  { id: 'jewel',      name: '寶石魔',       price: 130,   size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
-  { id: 'dottyback',  name: '蘭花擬雀鯛',   price: 210,   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
-  { id: 'snowclown',  name: '雪花小丑魚',   price: 360,   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
-  { id: 'clowntang',  name: '紋刺尾魚',     price: 620,  size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
-  { id: 'angel',      name: '神仙魚',       price: 1100,  size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
-  { id: 'peppermint', name: '紅薄荷神仙魚', price: 1900,  size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
-  { id: 'bluetang',   name: '藍倒吊',       price: 3400,  size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
-  { id: 'betta',      name: '鬥魚',         price: 6300,  size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
-  { id: 'parrot',     name: '鸚哥魚',       price: 12000,  size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
-  { id: 'grouper',    name: '豹石斑',       price: 22000,  size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
-  { id: 'moorish',    name: '鐮魚',         price: 42000, size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
-  { id: 'french',     name: '法國神仙魚',   price: 81000, size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
-  { id: 'queen',      name: '紫后神仙魚',   price: 160000, size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
-  { id: 'arowana',    name: '金龍魚',       price: 320000, size: 34, desc: '招財納福的風水魚', draw: drawArowana },
-  { id: 'mahi',       name: '鬼頭刀',       price: 650000, size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
-  { id: 'koi',        name: '錦鯉',         price: 1300000, size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
+  { id: 'neon',       name: '霓虹燈魚',     price: 42,    size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
+  { id: 'clown',      name: '小丑魚',       price: 89,   size: 24, desc: '活潑可愛的人氣王', draw: drawClown },
+  { id: 'blueclown',  name: '藍色小丑魚',   price: 190,   size: 24, desc: '少見的藍色小丑魚', draw: draw_blueclown },
+  { id: 'jewel',      name: '寶石魔',       price: 410,   size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
+  { id: 'dottyback',  name: '蘭花擬雀鯛',   price: 910,   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
+  { id: 'snowclown',  name: '雪花小丑魚',   price: 2000,   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
+  { id: 'clowntang',  name: '紋刺尾魚',     price: 4500,  size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
+  { id: 'angel',      name: '神仙魚',       price: 10000,  size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
+  { id: 'peppermint', name: '紅薄荷神仙魚', price: 23000,  size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
+  { id: 'bluetang',   name: '藍倒吊',       price: 53000,  size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
+  { id: 'betta',      name: '鬥魚',         price: 120000,  size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
+  { id: 'parrot',     name: '鸚哥魚',       price: 290000,  size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
+  { id: 'grouper',    name: '豹石斑',       price: 680000,  size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
+  { id: 'moorish',    name: '鐮魚',         price: 1600000, size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
+  { id: 'french',     name: '法國神仙魚',   price: 3900000, size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
+  { id: 'queen',      name: '紫后神仙魚',   price: 9600000, size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
+  { id: 'arowana',    name: '金龍魚',       price: 23000000, size: 34, desc: '招財納福的風水魚', draw: drawArowana },
+  { id: 'mahi',       name: '鬼頭刀',       price: 58000000, size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
+  { id: 'koi',        name: '錦鯉',         price: 150000000, size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
 ];
 // 依「平均每次想產出的價值」組出寶物組合：主要兩種相鄰的寶物，再加 6% 機率的更高級寶物
 function makePool(avg) {
-  const TV = ['coin', 'shell', 'pearl', 'crystal', 'crown', 'diamond', 'vase', 'gold', 'relic'];
+  const TV = ['bubble', 'coin', 'shell', 'pearl', 'crystal', 'crown', 'diamond', 'vase', 'gold', 'relic', 'key', 'trident', 'orb'];
   let i = 0; while (i < TV.length - 2 && TREASURE[TV[i + 1]].value < avg) i++;
   const lo = TREASURE[TV[i]].value, hi = TREASURE[TV[i + 1]].value, wHi = clamp(Math.round((avg - lo) / (hi - lo) * 94), 5, 88);
   const pool = [[TV[i], 94 - wHi], [TV[i + 1], wHi]];
@@ -229,12 +233,12 @@ function makePool(avg) {
 function tierStats(k, price) {
   const q = k / (SPECIES.length - 1);
   const dropEvery = Math.round(8 + 9 * q);
-  // 回本時間從約 25 秒逐級拉長到約 1.5 小時（不含繁殖），讓後面的魚更有挑戰
-  const avg = price / (25 * Math.pow(1.33, k)) * dropEvery;
+  // 回本時間從約 1 分鐘逐級拉長到約 10 小時（不含繁殖），讓後面的魚更有挑戰
+  const avg = price / (60 * Math.pow(1.4, k)) * dropEvery;
   const pool = makePool(avg);
   return {
     dropEvery, pool, stars: Math.max(1, Math.round(Math.pow(1.27, k))), speed: Math.round(70 - 25 * q),
-    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(45 * Math.pow(6.5, q) / 5) * 5,
+    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(45 * Math.pow(1.33, k) / 5) * 5,
   };
 }
 SPECIES.forEach((s, k) => Object.assign(s, tierStats(k, s.price)));
@@ -244,16 +248,16 @@ const SP = Object.fromEntries(SPECIES.map(s => [s.id, s]));
 // 星願夢幻生物：用星星兌換，每種只能有一隻，水族箱最多展示 3 隻
 // income：目標每秒產值（基本值，不含擺飾與背景加成）；寶物價值倍率 valueMult 另外乘上
 const STARFISH = [
-  { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 8,   desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
-  { id: 'rainbow', name: '彩虹天使', cost: 60,   size: 26, speed: 55, dropEvery: 12, valueMult: 1.35, income: 15,  desc: '身上的顏色不停流轉', draw: drawRainbow },
-  { id: 'crystal', name: '水晶魚',   cost: 100,  size: 26, speed: 50, dropEvery: 12, valueMult: 1.4,  income: 28,  desc: '透明閃耀的晶體身軀', draw: drawCrystal },
-  { id: 'leafy',   name: '葉形海龍', cost: 150,  size: 34, speed: 35, dropEvery: 13, valueMult: 1.45, income: 45,  desc: '身上長滿隨水搖曳的葉子', draw: drawLeafy },
-  { id: 'galaxy',  name: '星河魚',   cost: 220,  size: 28, speed: 50, dropEvery: 13, valueMult: 1.45, income: 70,  desc: '身體裡藏著一整片星空', draw: drawGalaxy },
-  { id: 'jelly',   name: '夜光水母', cost: 300,  size: 36, speed: 28, dropEvery: 14, valueMult: 1.5,  income: 110, desc: '一縮一放、發出柔和的光', draw: drawJelly },
-  { id: 'dragon',  name: '青龍',     cost: 420,  size: 26, speed: 60, dropEvery: 14, valueMult: 1.55, income: 170, desc: '傳說中守護海洋的神龍', draw: drawDragon },
-  { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 260, desc: '張開大翅膀在水中飛翔', draw: drawManta },
-  { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 400, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
-  { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 600, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
+  { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 20,   desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
+  { id: 'rainbow', name: '彩虹天使', cost: 60,   size: 26, speed: 55, dropEvery: 12, valueMult: 1.35, income: 45,  desc: '身上的顏色不停流轉', draw: drawRainbow },
+  { id: 'crystal', name: '水晶魚',   cost: 100,  size: 26, speed: 50, dropEvery: 12, valueMult: 1.4,  income: 90,  desc: '透明閃耀的晶體身軀', draw: drawCrystal },
+  { id: 'leafy',   name: '葉形海龍', cost: 150,  size: 34, speed: 35, dropEvery: 13, valueMult: 1.45, income: 170,  desc: '身上長滿隨水搖曳的葉子', draw: drawLeafy },
+  { id: 'galaxy',  name: '星河魚',   cost: 220,  size: 28, speed: 50, dropEvery: 13, valueMult: 1.45, income: 300,  desc: '身體裡藏著一整片星空', draw: drawGalaxy },
+  { id: 'jelly',   name: '夜光水母', cost: 300,  size: 36, speed: 28, dropEvery: 14, valueMult: 1.5,  income: 500, desc: '一縮一放、發出柔和的光', draw: drawJelly },
+  { id: 'dragon',  name: '青龍',     cost: 420,  size: 26, speed: 60, dropEvery: 14, valueMult: 1.55, income: 850, desc: '傳說中守護海洋的神龍', draw: drawDragon },
+  { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 1400, desc: '張開大翅膀在水中飛翔', draw: drawManta },
+  { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 2300, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
+  { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 3800, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
 ];
 STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); });
 STARFISH.forEach(s => s.star = true);
@@ -1552,7 +1556,8 @@ async function resetGame() {
   load(); syncStarFish(); calcBonus(); buildBg(); renderTab(); updateModeLabel(); toast('已重新開始');
 }
 
-function sellPrice(f) { return Math.floor(SP[f.sp].price * (0.15 + 0.45 * f.growth)); }
+// 賣魚最多拿回價格的 25%，避免「繁殖後賣小魚」比養魚賺得還多
+function sellPrice(f) { return Math.floor(SP[f.sp].price * (0.05 + 0.2 * f.growth)); }
 function releaseStars(f) { const st = SP[f.sp].stars; return f.growth >= 1 ? st : Math.floor(st * f.growth * .5); }
 async function releaseFish(id) {
   let f = state.fish.find(x => x.id === id); if (!f) return;
