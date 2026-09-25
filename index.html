@@ -72,6 +72,8 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 .card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .card .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .card small{color:var(--muted);font-size:14px}
+.card small.own{color:var(--text)}
+.card small.own b{color:var(--accent)}
 .card img{width:92px;height:55px;flex:none}
 .ico{font-size:32px;width:46px;text-align:center;flex:none}
 .swatch{width:72px;height:48px;border-radius:6px;flex:none;border:1px solid var(--border)}
@@ -1665,6 +1667,7 @@ function renderTab() {
     h += `<h3>🐟 魚店</h3>${full ? '<p class="hint" style="color:var(--bad)">水族箱已滿，請先擴充或出售一些魚。</p>' : ''}`;
     for (const sp of SPECIES) {
       h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
+        <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻</small>
         <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, 1)}</small></div>
         ${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}</div>`;
     }
@@ -1719,7 +1722,9 @@ function renderTab() {
       const list = state.fish.filter(f => f.sp === sp.id); if (!list.length) continue;
       const adults = list.filter(f => f.growth >= 1), ready = adults.filter(f => f.hunger >= 40).length;
       const prog = Math.min(1, (state.breedT[sp.id] || 0) / sp.breedTime);
-      const status = full ? '水族箱已滿，無法繁殖' : ready >= 2 ? `繁殖中（${Math.floor(ready / 2)} 對）` : adults.length >= 2 ? '成魚肚子餓，暫停繁殖' : '需要兩隻成魚才能繁殖';
+      const pairs = Math.floor(ready / 2), rate = Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
+      const left = Math.max(1, Math.ceil((sp.breedTime - (state.breedT[sp.id] || 0)) / rate));
+      const status = full ? '水族箱已滿，無法繁殖' : ready >= 2 ? `繁殖中（${pairs} 對）・約 <b>${fmtTime(left)}</b> 後生小魚` : adults.length >= 2 ? '成魚肚子餓，暫停繁殖（餵飽就會繼續）' : '需要兩隻成魚才能繁殖';
       h += `<div class="card" style="flex-direction:column;align-items:stretch"><div class="row"><img src="${PREV[sp.id]}" alt="" style="width:60px;height:36px">
         <div class="info"><b>${sp.name} × ${list.length}</b><small>成魚 ${adults.length}・未成年 ${list.length - adults.length}</small></div></div>
         <small style="color:var(--muted)">💞 ${status}</small><div class="bar"><i style="width:${prog * 100}%;background:#ff8fc8"></i></div>`;
@@ -1855,6 +1860,7 @@ function frame(now) {
   update(dt); render();
   hudT += dt; saveT += dt;
   if (state.coins !== lastCoins || state.fish.length !== lastFishN || state.stars !== lastStars) {
+    if (state.fish.length !== lastFishN && menuOpen && tab === 'shop' && !panelPressed) setTimeout(renderTab, 0);
     lastCoins = state.coins; lastFishN = state.fish.length; lastStars = state.stars;
     $('#starPill').textContent = `⭐ ${fmt(state.stars)}`;
     $('#coinPill').textContent = `💰 ${fmt(state.coins)}`; $('#fishPill').textContent = `🐟 ${state.fish.length}/${capacity()}`;
