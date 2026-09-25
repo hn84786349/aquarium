@@ -1473,6 +1473,24 @@ function ask(msg, yes = '確定', no = '取消') {
     $('#askYes').onclick = () => done(true); $('#askNo').onclick = () => done(false);
   });
 }
+// ====== 存檔保護 ======
+// 向瀏覽器申請「持久儲存」，請它不要自動清除這個網站的資料（iPhone 從主畫面圖示打開、常玩時較容易被同意）
+let persistState = 'unknown';
+async function requestPersist() {
+  try {
+    if (!navigator.storage || !navigator.storage.persist) persistState = 'unsupported';
+    else if (await navigator.storage.persisted()) persistState = 'granted';
+    else persistState = (await navigator.storage.persist()) ? 'granted' : 'denied';
+  } catch (e) { persistState = 'unsupported'; }
+  if (menuOpen && tab === 'mine') renderTab();
+}
+function persistNote() {
+  if (persistState === 'granted') return '<div class="bonus">🛡️ 存檔保護：<b>已開啟</b>，瀏覽器會盡量保留你的進度。</div>';
+  if (persistState === 'denied') return `<div class="bonus">🛡️ 存檔保護：瀏覽器暫時還沒同意。${/iPhone|iPad|iPod/.test(navigator.userAgent) && !isAppMode() ? '建議改從主畫面的遊戲圖示打開，' : ''}常常打開來玩，通常就會自動同意。也建議偶爾「📤 匯出存檔」備份。</div>`;
+  if (persistState === 'unsupported') return '<div class="bonus">🛡️ 存檔保護：這個瀏覽器不支援，建議偶爾「📤 匯出存檔」備份。</div>';
+  return '';
+}
+
 // ====== 匯出／匯入存檔 ======
 // 存檔碼格式：AQ2:<長度>:<base64>。記下長度，才能判斷是不是只複製到一部分
 // 匯出時會把沙地上還沒撿的寶物直接換成金幣、拿掉游動方向等暫時資料、數字四捨五入，讓存檔碼短一點比較好複製
@@ -1743,7 +1761,7 @@ function renderTab() {
       h += `</div>`;
     }
     h += `<h4>🎮 玩法說明</h4><div class="bonus">點水族箱投放飼料；點或滑過寶物就能撿起來換金幣。<br>切到「🔍 查看」模式可以點魚看狀態，點沙地上的擺飾可以更換擺飾。</div>
-      <h4>⚙️ 其他</h4><div class="row" style="flex-direction:column;align-items:stretch;gap:10px">${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
+      <h4>⚙️ 其他</h4>${persistNote()}<div class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:10px">${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
     h += `<h3>⭐ 星願商店</h3><div class="bonus">把魚「放生」回大海就能獲得星星，越高階的魚星星越多（未成年的魚星星較少）。<br>
@@ -2014,6 +2032,9 @@ load(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
+// 一打開就申請存檔保護；有些瀏覽器要點過畫面才會同意，所以第一次點畫面時再申請一次
+requestPersist();
+document.addEventListener('pointerdown', () => { if (persistState !== 'granted') requestPersist(); }, { once: true });
 window.addEventListener('beforeunload', save);
 document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else checkOffline(); });
 requestAnimationFrame(frame);
