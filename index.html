@@ -1012,6 +1012,27 @@ function drawManta(c, s, w, e, f) {
   for (const d of [-1, 1]) polyFill(c, [[s * .55, d * s * .08], [s * .85, d * s * .16], [s * .8, d * s * .28], [s * .5, d * s * .22]], '#34446a');
   lpEye(c, s * .45, -s * .22, s * .05 * e, '#0a0e18');
 }
+// 撿寶蝸牛：用程式畫（不用表情符號，各家手機的蝸牛圖案朝向不同，會變成倒退走）
+function drawSnail(c, x, y, s, dir, moving) {
+  const k = moving ? Math.sin(T * 7) * .08 : 0;
+  c.save(); c.translate(x, y); c.scale(dir, 1);
+  c.fillStyle = 'rgba(0,0,0,0.18)'; ell(c, 0, s * .45, s * 1.3, s * .18); c.fill();
+  // 身體（會伸縮）與觸角
+  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * (1.3 + k), s * .08], [s * (1.05 + k), -s * .22], [s * .55, -s * .1], [-s * .9, s * .12]], '#eccb9f');
+  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * .9, s * .22], [-s * .95, s * .28]], '#c9a07a');
+  c.strokeStyle = '#dcb88c'; c.lineWidth = s * .13; c.lineCap = 'round';
+  const wig = Math.sin(T * 3) * s * .06;
+  c.beginPath(); c.moveTo(s * (1.05 + k), -s * .12); c.lineTo(s * (1.35 + k) + wig, -s * .8);
+  c.moveTo(s * (.85 + k), -s * .1); c.lineTo(s * (.98 + k) - wig, -s * .72); c.stroke();
+  c.fillStyle = '#2a1a10'; circle(c, s * (1.35 + k) + wig, -s * .82, s * .12); c.fill(); circle(c, s * (.98 + k) - wig, -s * .74, s * .1); c.fill();
+  // 多邊形殼＋螺旋紋
+  const cx = -s * .2, cy = -s * .42, R = s * .82, cols = ['#d9793a', '#b95a26', '#e8934a', '#c86a30', '#f0a458', '#b95a26', '#dd8240', '#c86a30'];
+  for (let i = 0; i < 8; i++) { const a0 = i * Math.PI / 4, a1 = a0 + Math.PI / 4; polyFill(c, [[cx, cy], [cx + Math.cos(a0) * R, cy + Math.sin(a0) * R], [cx + Math.cos(a1) * R, cy + Math.sin(a1) * R]], cols[i]); }
+  c.strokeStyle = '#ffd89a'; c.lineWidth = Math.max(1.2, s * .1); c.lineJoin = 'round'; c.beginPath();
+  for (let i = 0; i <= 20; i++) { const a = i * .55, r = R * (.85 - i * .038); c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+  c.stroke();
+  c.restore();
+}
 function drawBeluga(c, s, w, e, f) { drawModel(c, s, w, e, f, MODELS.beluga); }
 
 // 水晶魚：本身就是切面造型
@@ -1224,10 +1245,10 @@ function update(dt) {
     let best = null, bd = 1e9;
     for (const t of state.treasures) if (t.landed) { const d = Math.abs(t.x - snail.x); if (d < bd) { bd = d; best = t; } }
     if (best) {
-      const dx = best.x - snail.x; snail.dir = dx > 0 ? 1 : -1;
+      const dx = best.x - snail.x; snail.dir = dx > 0 ? 1 : -1; snail.moving = Math.abs(dx) > 1;
       snail.x += snail.dir * Math.min(Math.abs(dx), snailSpeed(state.snailLv) * dt);
       if (Math.abs(best.x - snail.x) < 6) collectTreasure(best);
-    }
+    } else snail.moving = false;
   }
   // 金幣飛向左上角的金幣數
   for (let i = coinFx.length - 1; i >= 0; i--) {
@@ -1370,8 +1391,7 @@ function render() {
   for (const f of starFish) drawFish(ctx, f, T);
   for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
   if (state.snailLv > 0) {
-    ctx.save(); ctx.translate(snail.x, FLOOR + 30); if (snail.dir > 0) ctx.scale(-1, 1);
-    emoji(ctx, '🐌', 0, 0, 26 + state.snailLv * 4); ctx.restore();
+    drawSnail(ctx, snail.x, FLOOR + 34, 11 + state.snailLv * 3, snail.dir, snail.moving);
   }
   if (state.feederLv > 0) emoji(ctx, '🤖', W - 30, 26, 26);
   for (const f of coinFx) {
