@@ -1865,8 +1865,8 @@ function frame(now) {
 }
 
 // ====== 離線收益 ======
-// 離開期間魚兒照樣產寶，但只算正常速度的 60%，最多累積 8 小時；離開時不會肚子餓
-const OFFLINE_RATE = 0.6, OFFLINE_MAX_H = 8;
+// 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 8 小時；離開時不會肚子餓
+const OFFLINE_RATE = 0.3, OFFLINE_MAX_H = 8;
 const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
 function incomePerSec() {
   let v = 0;
