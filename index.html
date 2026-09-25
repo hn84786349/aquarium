@@ -73,6 +73,8 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 .card .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .card small{color:var(--muted);font-size:14px}
 .card small.own{color:var(--text)}
+.capBox{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:17px}
+.capBox small{font-size:14px}
 .card small.own b{color:var(--accent)}
 .card img{width:92px;height:55px;flex:none}
 .ico{font-size:32px;width:46px;text-align:center;flex:none}
@@ -1665,7 +1667,11 @@ function renderTab() {
   let h = '';
   if (tab === 'shop') {
     const full = state.fish.length >= capacity();
-    h += `<h3>🐟 魚店</h3>${full ? '<p class="hint" style="color:var(--bad)">水族箱已滿，請先擴充或出售一些魚。</p>' : ''}`;
+    // 目前魚的數量／上限，快滿變黃、滿了變紅
+    const n = state.fish.length, cap = capacity(), capCol = full ? 'var(--bad)' : n >= cap * .8 ? 'var(--accent)' : 'var(--good)';
+    h += `<h3>🐟 魚店</h3><div class="capBox"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
+      ${full ? '<small style="color:var(--bad)">已滿，可到最下面「擴充水族箱」或賣掉、放生一些魚</small>' : n >= cap * .8 ? '<small style="color:var(--accent)">快滿了</small>' : ''}</div>
+      <div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%;background:${capCol}"></i></div></div>`;
     for (const sp of SPECIES) {
       h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
         <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻</small>
