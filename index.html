@@ -198,7 +198,7 @@ const TREASURE = {
   orb:     { icon: '🔮', name: '龍宮寶珠', value: 150000 },
 };
 
-// 20 種魚，每級價格約 2.1 倍逐步增加到 2.5 倍，跳級要存很久；寶物、成長、繁殖、放生星星等數值由 tierStats 依價位自動計算
+// 20 種魚，前期每級約 2.1 倍，越後面漲越多（最後約 3.3 倍）；寶物、成長、繁殖、放生星星等數值由 tierStats 自動計算
 const SPECIES = [
   { id: 'guppy',      name: '孔雀魚',       price: 20,    size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
   { id: 'neon',       name: '霓虹燈魚',     price: 42,    size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
@@ -207,19 +207,19 @@ const SPECIES = [
   { id: 'jewel',      name: '寶石魔',       price: 410,   size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
   { id: 'dottyback',  name: '蘭花擬雀鯛',   price: 910,   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
   { id: 'snowclown',  name: '雪花小丑魚',   price: 2000,   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
-  { id: 'clowntang',  name: '紋刺尾魚',     price: 4500,  size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
-  { id: 'angel',      name: '神仙魚',       price: 10000,  size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
-  { id: 'peppermint', name: '紅薄荷神仙魚', price: 23000,  size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
-  { id: 'bluetang',   name: '藍倒吊',       price: 53000,  size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
-  { id: 'betta',      name: '鬥魚',         price: 120000,  size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
-  { id: 'parrot',     name: '鸚哥魚',       price: 290000,  size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
-  { id: 'grouper',    name: '豹石斑',       price: 680000,  size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
-  { id: 'moorish',    name: '鐮魚',         price: 1600000, size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
-  { id: 'french',     name: '法國神仙魚',   price: 3900000, size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
-  { id: 'queen',      name: '紫后神仙魚',   price: 9600000, size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
-  { id: 'arowana',    name: '金龍魚',       price: 23000000, size: 34, desc: '招財納福的風水魚', draw: drawArowana },
-  { id: 'mahi',       name: '鬼頭刀',       price: 58000000, size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
-  { id: 'koi',        name: '錦鯉',         price: 150000000, size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
+  { id: 'clowntang',  name: '紋刺尾魚',     price: 4700,  size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
+  { id: 'angel',      name: '神仙魚',       price: 11000,  size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
+  { id: 'peppermint', name: '紅薄荷神仙魚', price: 27000,  size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
+  { id: 'bluetang',   name: '藍倒吊',       price: 68000,  size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
+  { id: 'betta',      name: '鬥魚',         price: 170000,  size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
+  { id: 'parrot',     name: '鸚哥魚',       price: 460000,  size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
+  { id: 'grouper',    name: '豹石斑',       price: 1300000,  size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
+  { id: 'moorish',    name: '鐮魚',         price: 3500000, size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
+  { id: 'french',     name: '法國神仙魚',   price: 10000000, size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
+  { id: 'queen',      name: '紫后神仙魚',   price: 31000000, size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
+  { id: 'arowana',    name: '金龍魚',       price: 95000000, size: 34, desc: '招財納福的風水魚', draw: drawArowana },
+  { id: 'mahi',       name: '鬼頭刀',       price: 300000000, size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
+  { id: 'koi',        name: '錦鯉',         price: 1000000000, size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
 ];
 // 依「平均每次想產出的價值」組出寶物組合：主要兩種相鄰的寶物，再加 6% 機率的更高級寶物
 function makePool(avg) {
@@ -230,14 +230,16 @@ function makePool(avg) {
   if (i + 2 < TV.length) pool.push([TV[i + 2], 6]); else pool[1][1] += 6;
   return pool;
 }
+// 每一階的目標每秒產值（和價格分開設定：價格可以更陡，產值維持原本的成長速度）
+const TIER_INCOME = [0.33, 0.5, 0.76, 1.15, 1.78, 2.82, 4.43, 7.11, 11.29, 18.55, 30.54, 49.39, 85.25, 142.79, 239.98, 417.82, 734.63, 1257.19, 2264.5, 4183.19];
 function tierStats(k, price) {
   const q = k / (SPECIES.length - 1);
   const dropEvery = Math.round(8 + 9 * q);
-  // 回本時間從約 1 分鐘逐級拉長到約 10 小時（不含繁殖），讓後面的魚更有挑戰
-  const avg = price / (60 * Math.pow(1.4, k)) * dropEvery;
+  // 回本時間從約 1 分鐘逐級拉長到約 66 小時（不含繁殖），後期要慢慢存
+  const income = TIER_INCOME[k], avg = income * dropEvery;
   const pool = makePool(avg);
   return {
-    dropEvery, pool, stars: Math.max(1, Math.round(Math.pow(1.27, k))), speed: Math.round(70 - 25 * q),
+    dropEvery, pool, income, stars: Math.max(1, Math.round(Math.pow(1.27, k))), speed: Math.round(70 - 25 * q),
     hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(8, q) / 10) * 10, breedTime: Math.round(45 * Math.pow(1.33, k) / 5) * 5,
   };
 }
@@ -1556,8 +1558,8 @@ async function resetGame() {
   load(); syncStarFish(); calcBonus(); buildBg(); renderTab(); updateModeLabel(); toast('已重新開始');
 }
 
-// 賣魚最多拿回價格的 25%，避免「繁殖後賣小魚」比養魚賺得還多
-function sellPrice(f) { return Math.floor(SP[f.sp].price * (0.05 + 0.2 * f.growth)); }
+// 賣魚最多拿回價格的 25%，而且不超過這隻魚大約 1 小時的產值，避免「繁殖後賣小魚」比養魚賺得還多
+function sellPrice(f) { const sp = SP[f.sp]; return Math.floor(Math.min(sp.price * .25, sp.income * 3600) * (.2 + .8 * f.growth)); }
 function releaseStars(f) { const st = SP[f.sp].stars; return f.growth >= 1 ? st : Math.floor(st * f.growth * .5); }
 async function releaseFish(id) {
   let f = state.fish.find(x => x.id === id); if (!f) return;
@@ -1865,8 +1867,8 @@ function frame(now) {
 }
 
 // ====== 離線收益 ======
-// 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 8 小時；離開時不會肚子餓
-const OFFLINE_RATE = 0.3, OFFLINE_MAX_H = 8;
+// 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 2 小時；離開時不會肚子餓
+const OFFLINE_RATE = 0.3, OFFLINE_MAX_H = 2;
 const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
 function incomePerSec() {
   let v = 0;
