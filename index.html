@@ -75,6 +75,8 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 .card small.own{color:var(--text)}
 .capBox{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:17px}
 .capBox small{font-size:14px}
+/* 魚店的數量框：往下滑時固定在最上面 */
+.capBox.sticky{position:sticky;top:-8px;z-index:5;box-shadow:0 -6px 0 6px var(--panel),0 6px 12px rgba(0,0,0,.45)}
 .card small.own b{color:var(--accent)}
 .card img{width:92px;height:55px;flex:none}
 .ico{font-size:32px;width:46px;text-align:center;flex:none}
@@ -1707,7 +1709,7 @@ function renderTab() {
     const full = state.fish.length >= capacity();
     // 目前魚的數量／上限，快滿變黃、滿了變紅
     const n = state.fish.length, cap = capacity(), capCol = full ? 'var(--bad)' : n >= cap * .8 ? 'var(--accent)' : 'var(--good)';
-    h += `<h3>🐟 魚店</h3><div class="capBox"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
+    h += `<h3>🐟 魚店</h3><div class="capBox sticky"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
       ${full ? '<small style="color:var(--bad)">已滿，可到最下面「擴充水族箱」或賣掉、放生一些魚</small>' : n >= cap * .8 ? '<small style="color:var(--accent)">快滿了</small>' : ''}</div>
       <div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%;background:${capCol}"></i></div></div>`;
     for (const sp of SPECIES) {
