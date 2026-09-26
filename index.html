@@ -78,6 +78,7 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 /* 魚店的數量框：往下滑時固定在最上面 */
 .capBox.sticky{position:sticky;top:-8px;z-index:5;box-shadow:0 -6px 0 6px var(--panel),0 6px 12px rgba(0,0,0,.45)}
 .card small.own b{color:var(--accent)}
+.card small .relstar{color:#fff27a;white-space:nowrap}
 .card img{width:92px;height:55px;flex:none}
 .ico{font-size:32px;width:46px;text-align:center;flex:none}
 .swatch{width:72px;height:48px;border-radius:6px;flex:none;border:1px solid var(--border)}
@@ -2617,7 +2618,7 @@ function renderTab() {
     for (const sp of SPECIES) {
       if (sp.tier > lim) break;
       h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
-        <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻</small>
+        <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻　<span class="relstar">成魚放生 ⭐${sp.stars}</span></small>
         <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
         ${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}</div>`;
     }
