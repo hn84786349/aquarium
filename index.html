@@ -894,14 +894,24 @@ const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 8;
 // 設備價格配合魚價稍微調高，但維持輕鬆：最貴的擴充約是中後期一隻魚的價格
 const capCost = lv => Math.round(200 * Math.pow(3.2, lv) / 10) * 10;
 const FEEDER_MAX = 5, feederCost = lv => 500 * Math.pow(4, lv), feederInterval = lv => 14 - 2 * lv;
-const SNAIL_MAX = 3, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
+const SNAIL_MAX = 5, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
+// Lv.4 起有兩隻蝸牛，一隻顧左半邊、一隻顧右半邊
+const snailCount = () => state.snailLv >= 4 ? 2 : state.snailLv > 0 ? 1 : 0;
+// 新設備（各 3 級）：離線收集網、育嬰室、打氣機
+const EQUIP = {
+  net:     { icon: '⏰', name: '離線收集網', costs: [8000, 400000, 20000000], desc: lv => `離開遊戲時，最多累積 ${offlineMaxH(lv)} 小時的收益` },
+  nursery: { icon: '🍼', name: '育嬰室',     costs: [3000, 150000, 8000000],  desc: lv => lv ? `新生的小魚一出生就有 ${Math.round(nurseryGrowth(lv) * 100)}% 成長度` : '新生的小魚一出生就先長大一些' },
+  pump:    { icon: '🫧', name: '打氣機',     costs: [2000, 80000, 3000000],   desc: lv => lv ? `魚的飽食度下降慢 ${lv * 10}%，水族箱多一串氣泡` : '讓魚比較不容易餓，還會冒出一串氣泡' },
+};
+const offlineMaxH = (lv = state.netLv) => 2 + 2 * lv;
+const nurseryGrowth = (lv = state.nurseryLv) => [0, .2, .35, .5][lv];
 const NAMES = ['小橘', '泡泡', '阿福', '圓圓', '小藍', '閃閃', '豆豆', '咕嚕', '皮皮', '點點', '糖糖', '米米', '旺財', '布丁', '湯圓', '麻糬', '小白', '阿金', '飯糰', '雪球', 'Nemo', 'Bubbles', 'Lucky'];
 
 // ====== 狀態 ======
 let state;
 function newState() {
   return {
-    coins: 100, capLv: 0, feederLv: 0, snailLv: 0, food: 'basic',
+    coins: 100, capLv: 0, feederLv: 0, snailLv: 0, netLv: 0, nurseryLv: 0, pumpLv: 0, food: 'basic',
     bg: 'fresh', ownedBg: ['fresh'], scene: newScene(),
     breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0,
     stars: 0, starEarned: 0, starOwned: [], starShown: [],
@@ -909,7 +919,7 @@ function newState() {
 }
 let pellets = [], particles = [], texts = [], bubbles = [], starFish = [], releasing = [], coinFx = [];
 let tab = 'shop', storeTab = 'shop', selFishId = null, B = {};
-let snail = { x: 500, dir: 1 }, feederT = 0, T = 0;
+let snails = [{ x: 500, dir: 1 }, { x: 900, dir: -1 }], feederT = 0, T = 0;
 const capacity = () => CAP_BASE + CAP_STEP * state.capLv;
 // 魚店顯示到哪一種：曾經擁有過的最高級魚往後 3 種
 const shopLimit = () => Math.min(SPECIES.length - 1, Math.max(state.maxTier || 0, ...state.fish.map(f => SP[f.sp].tier)) + 3);
@@ -932,7 +942,7 @@ function calcBonus() {
     const amt = p.per[lv - 1];
     if (p.eff === 'all') for (const k in b) b[k] += amt; else b[p.eff] += amt;
   }
-  B = { value: 1 + b.value, drop: 1 + b.drop, breed: 1 + b.breed, growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger), raw: b };
+  B = { value: 1 + b.value, drop: 1 + b.drop, breed: 1 + b.breed, growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger) * (1 - .1 * (state.pumpLv || 0)), raw: b };
 }
 
 // ====== 存檔 ======
@@ -1008,7 +1018,7 @@ function resize() {
   if (state) {
     for (const f of [...state.fish, ...starFish]) { f.x = clamp(f.x, 30, W - 30); f.tx = clamp(f.tx, 40, W - 40); }
     for (const t of state.treasures) t.x = clamp(t.x, 20, W - 20);
-    snail.x = clamp(snail.x, 20, W - 20);
+    for (const sn of snails) sn.x = clamp(sn.x, 20, W - 20);
   }
   buildBg();
 }
@@ -2142,7 +2152,7 @@ function updateBreeding(dt) {
       state.breedT[sp.id] = 0;
       const a = pick(el); let b = pick(el); if (b === a) b = el.find(x => x !== a);
       const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
-      const baby = spawnFish(sp.id, x, y, 0, 60);
+      const baby = spawnFish(sp.id, x, y, nurseryGrowth(), 60);
       for (let i = 0; i < 6; i++) particles.push({ x: x + rand(-20, 20), y: y + rand(-10, 10), vy: -rand(20, 45), life: 1.6, icon: '💗' });
       floatText(x, y - 25, `${sp.name}寶寶「${baby.name}」誕生了！`, '#ffb3d9');
       toast(`🎉 ${sp.name}生了小魚！`);
@@ -2182,15 +2192,20 @@ function update(dt) {
     }
   }
   // 蝸牛
-  if (state.snailLv > 0) {
+  // 蝸牛：兩隻的時候各自負責半邊
+  const nS = snailCount();
+  for (let i = 0; i < nS; i++) {
+    const sn = snails[i], lo = nS > 1 && i === 1 ? W / 2 : 0, hi = nS > 1 && i === 0 ? W / 2 : W;
     let best = null, bd = 1e9;
-    for (const t of state.treasures) if (t.landed) { const d = Math.abs(t.x - snail.x); if (d < bd) { bd = d; best = t; } }
+    for (const t of state.treasures) if (t.landed && t.x >= lo && t.x < hi) { const d = Math.abs(t.x - sn.x); if (d < bd) { bd = d; best = t; } }
     if (best) {
-      const dx = best.x - snail.x; snail.dir = dx > 0 ? 1 : -1; snail.moving = Math.abs(dx) > 1;
-      snail.x += snail.dir * Math.min(Math.abs(dx), snailSpeed(state.snailLv) * dt);
-      if (Math.abs(best.x - snail.x) < 6) collectTreasure(best);
-    } else snail.moving = false;
+      const dx = best.x - sn.x; sn.dir = dx > 0 ? 1 : -1; sn.moving = Math.abs(dx) > 1;
+      sn.x += sn.dir * Math.min(Math.abs(dx), snailSpeed(state.snailLv) * dt);
+      if (Math.abs(best.x - sn.x) < 6) collectTreasure(best);
+    } else sn.moving = false;
   }
+  // 打氣機：從右邊石頭冒出一串氣泡
+  if (state.pumpLv > 0 && Math.random() < dt * (5 + state.pumpLv * 4)) bubbles.push({ x: W * .535 + rand(-3, 3), y: H - 16, r: rand(2, 4.5), vy: rand(60, 100) });
   // 金幣飛向左上角的金幣數
   for (let i = coinFx.length - 1; i >= 0; i--) {
     const f = coinFx[i]; f.t += dt; f.spin += dt * 9;
@@ -2312,8 +2327,8 @@ function render() {
   for (const f of sorted) drawFish(ctx, f, T);
   for (const f of starFish) drawFish(ctx, f, T);
   for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
-  if (state.snailLv > 0) {
-    drawSnail(ctx, snail.x, FLOOR + 34, 11 + state.snailLv * 3, snail.dir, snail.moving);
+  for (let i = 0; i < snailCount(); i++) {
+    const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);
   }
   if (state.feederLv > 0) emoji(ctx, '🤖', W - 30, 26, 26);
   for (const f of coinFx) {
@@ -2765,8 +2780,13 @@ function renderTab() {
       ${state.capLv < CAP_MAX_LV ? costBtn('buyCap', '', capCost(state.capLv), '擴充') : '<button disabled>MAX</button>'}</div>`;
     h += `<div class="card"><div class="ico">🤖</div><div class="info"><b>自動餵食器 Lv.${state.feederLv}</b><small>${state.feederLv ? `每 ${feederInterval(state.feederLv)} 秒自動投放目前選擇的飼料` : '有魚肚子餓時自動投放飼料（會扣飼料錢）'}</small></div>
       ${state.feederLv < FEEDER_MAX ? costBtn('buyFeeder', '', feederCost(state.feederLv), state.feederLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
-    h += `<div class="card"><div class="ico">🐌</div><div class="info"><b>撿寶蝸牛 Lv.${state.snailLv}</b><small>${state.snailLv ? `自動去撿沉在沙上的寶物（速度 ${snailSpeed(state.snailLv)}）` : '幫你自動撿沙地上的寶物'}</small></div>
+    h += `<div class="card"><div class="ico">🐌</div><div class="info"><b>撿寶蝸牛 Lv.${state.snailLv}</b><small>${state.snailLv ? `自動去撿沉在沙上的寶物（速度 ${snailSpeed(state.snailLv)}${snailCount() > 1 ? '，兩隻分左右邊' : ''}）` : '幫你自動撿沙地上的寶物'}</small>${state.snailLv > 0 && state.snailLv < 4 ? '<small>Lv.4 起會多一隻蝸牛</small>' : ''}</div>
       ${state.snailLv < SNAIL_MAX ? costBtn('buySnail', '', snailCost(state.snailLv), state.snailLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
+    for (const k in EQUIP) {
+      const e = EQUIP[k], lv = state[k + 'Lv'] || 0;
+      h += `<div class="card"><div class="ico">${e.icon}</div><div class="info"><b>${e.name} Lv.${lv}</b><small>${e.desc(lv)}</small>${lv < 3 ? `<small>下一級：${e.desc(lv + 1)}</small>` : ''}</div>
+        ${lv < 3 ? costBtn('buyEquip', k, e.costs[lv], lv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
+    }
     h += `<h3 style="margin-top:18px">🪸 功能造景</h3><div class="bonus">目前加成：寶物價值 <b>+${Math.round(r.value * 100)}%</b>　產寶速度 <b>+${Math.round(r.drop * 100)}%</b><br>
       成長速度 <b>+${Math.round(r.growth * 100)}%</b>　繁殖速度 <b>+${Math.round(r.breed * 100)}%</b>　飽食度消耗 <b>-${Math.round((1 - B.hunger) * 100)}%</b>　離線收益 <b>+${Math.round(r.offline * 100)}%</b></div>
       <p class="hint">每個造景都有固定的位置，會跟背景融為一體。升級會讓功能變強；外觀可以選自己喜歡的等級，功能一樣算最高等級。</p>`;
@@ -2863,7 +2883,11 @@ const ACTIONS = {
   },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
   buyFeeder() { if (state.feederLv < FEEDER_MAX && pay(feederCost(state.feederLv))) { state.feederLv++; toast(`自動餵食器 Lv.${state.feederLv}`); } },
-  buySnail() { if (state.snailLv < SNAIL_MAX && pay(snailCost(state.snailLv))) { state.snailLv++; toast(`撿寶蝸牛 Lv.${state.snailLv}`); } },
+  buySnail() { if (state.snailLv < SNAIL_MAX && pay(snailCost(state.snailLv))) { state.snailLv++; if (state.snailLv === 4) snails[1].x = W * .75; toast(state.snailLv === 4 ? '🐌 撿寶蝸牛 Lv.4，多了一隻蝸牛幫忙！' : `撿寶蝸牛 Lv.${state.snailLv}`); } },
+  buyEquip(k) {
+    const e = EQUIP[k], key = k + 'Lv', lv = state[key] || 0;
+    if (lv < 3 && pay(e.costs[lv])) { state[key] = lv + 1; calcBonus(); toast(`${e.icon} ${e.name} Lv.${lv + 1}`); }
+  },
   buyBg(id) { const bg = BG[id]; if (pay(bg.starPrice || bg.price, !!bg.starPrice)) { state.ownedBg.push(id); ACTIONS.useBg(id); } },
   useBg(id) { state.bg = id; buildBg(); calcBonus(); toast(`背景換成「${BG[id].name}」`); },
   upScene(id) {
@@ -2926,8 +2950,8 @@ function frame(now) {
 }
 
 // ====== 離線收益 ======
-// 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 2 小時；離開時不會肚子餓
-const OFFLINE_RATE = 0.3, OFFLINE_MAX_H = 2;
+// 離開期間魚兒照樣產寶，但只算正常速度的 30%，最多累積 2 小時（升級離線收集網可到 8 小時）；離開時不會肚子餓
+const OFFLINE_RATE = 0.3;
 function incomePerSec() {
   let v = 0;
   for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
@@ -2943,10 +2967,10 @@ function checkOffline() {
   const now = Date.now(), away = state.lastSeen ? (now - state.lastSeen) / 1000 : 0;
   state.lastSeen = now;
   if (away < 60 || offlineShown) return;
-  const sec = Math.min(away, OFFLINE_MAX_H * 3600), amt = Math.floor(incomePerSec() * sec * OFFLINE_RATE * B.offline);
+  const sec = Math.min(away, offlineMaxH() * 3600), amt = Math.floor(incomePerSec() * sec * OFFLINE_RATE * B.offline);
   if (amt < 1) return;
   offlineShown = true;
-  $('#welcomeMsg').textContent = `歡迎回來！\n你離開了 ${fmtDur(away)}，魚兒們找到的寶物已經換成金幣${away > sec ? `\n（最多只能累積 ${OFFLINE_MAX_H} 小時）` : ''}：`;
+  $('#welcomeMsg').textContent = `歡迎回來！\n你離開了 ${fmtDur(away)}，魚兒們找到的寶物已經換成金幣${away > sec ? `\n（最多只能累積 ${offlineMaxH()} 小時，可以升級「離線收集網」）` : ''}：`;
   $('#welcomeAmt').textContent = `💰 ${fmt(amt)}`;
   $('#welcome').hidden = false;
   $('#welcomeOk').onclick = () => {
