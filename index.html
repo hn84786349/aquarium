@@ -44,6 +44,7 @@ canvas{display:block;touch-action:none;cursor:pointer}
 .pill.bump{animation:bump .3s ease-out}
 #ctrls button{background:var(--glass);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-color:rgba(255,255,255,.16);white-space:nowrap}
 #ctrls button.on{background:var(--accent);color:#2a1d00;border-color:var(--accent)}
+#ctrls button.view{background:#6ec3ff;color:#04223a;border-color:#6ec3ff;font-weight:700}
 #menuBtn{font-weight:700;padding-inline:16px}
 /* 選單面板：從右側滑出 */
 #menuBack{position:fixed;inset:0;background:rgba(3,8,16,.45);z-index:10}
@@ -851,7 +852,7 @@ function drawScene(layer) {
     }
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(SCENE_CV[layer], 0, 0); ctx.restore();
-  const edit = menuOpen && tab === 'decor';
+  const edit = viewMode || (menuOpen && tab === 'decor');
   for (const p of SCENE) {
     if (p.layer !== layer) continue;
     const st = state.scene[p.id], { x, y } = scenePos(p);
@@ -2395,14 +2396,16 @@ canvas.addEventListener('pointerdown', e => {
   // 飼料選單打開時，點水族箱只是把選單關掉
   if (!$('#foodPop').hidden) { toggleFood(false); dragging = false; return; }
   const t = treasureAt(p); if (t) { collectTreasure(t); return; }
-  // 點到魚的身上：顯示這隻魚的狀態（判定範圍只算魚身，才不會一直點不到水裡投飼料）
-  let hit = null, hd = 1e9;
-  for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.05 + 6, d = Math.hypot(f.x - p.x, (f.y - p.y) * 1.4); if (d < s && d < hd) { hd = d; hit = f; } }
-  if (hit) { selFishId = hit.id; updateFishCard(); return; }
-  const pc = !treasureAt(p, 60) && sceneAt(p);
-  if (pc) { openScene(pc.id); return; }
-  // 其他地方：投放飼料
-  if (selFishId) { selFishId = null; updateFishCard(); }
+  // 查看模式：點魚看狀態、點造景升級，不會投放飼料
+  if (viewMode) {
+    let hit = null, hd = 1e9;
+    for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.4 + 8, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < s && d < hd) { hd = d; hit = f; } }
+    if (hit) { selFishId = hit.id; updateFishCard(); return; }
+    const pc = !treasureAt(p, 60) && sceneAt(p);
+    if (pc) { openScene(pc.id); return; }
+    selFishId = null; updateFishCard(); return;
+  }
+  // 餵食模式：點哪裡就投放飼料（點到魚也一樣）
   const fd = FD[state.food];
   if (state.coins < fd.cost) { floatText(p.x, p.y, '金幣不足', '#ff8080'); return; }
   state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR))));
@@ -2411,11 +2414,20 @@ canvas.addEventListener('pointermove', e => { if (!dragging && e.pointerType !==
 window.addEventListener('pointerup', () => dragging = false);
 
 // 右上角的「餵食」按鈕：顯示目前的飼料，按下去可以換飼料
-function updateModeLabel() { const fd = FD[state.food]; $('#modeFeed').innerHTML = `🍤 餵食 <span class="lbl">${fd.name}</span> 💰${fd.cost} ▾`; if (!$('#foodPop').hidden) renderFood(); }
+// 右上角按鈕：可以選「查看」（點魚看狀態）或某一種飼料（點哪裡就餵到哪裡）
+let viewMode = false;
+function updateModeLabel() {
+  const fd = FD[state.food];
+  $('#modeFeed').innerHTML = viewMode ? '🔍 查看 ▾' : `🍤 餵食 <span class="lbl">${fd.name}</span> 💰${fd.cost} ▾`;
+  $('#modeFeed').classList.toggle('on', !viewMode); $('#modeFeed').classList.toggle('view', viewMode);
+  if (!$('#foodPop').hidden) renderFood();
+}
 function renderFood() {
-  $('#foodPop').innerHTML = `<div class="fh">🍤 選擇飼料</div>${FOODS.map(fd => `<button class="food ${state.food === fd.id ? 'on' : ''}" data-food="${fd.id}"><span class="fi">${fd.icon}</span>
+  $('#foodPop').innerHTML = `<div class="fh">要做什麼？</div>
+    <button class="food ${viewMode ? 'on' : ''}" data-food="view"><span class="fi">🔍</span><span><b>查看</b><small>點魚看狀態、賣出或放生；點造景可以升級</small></span></button>
+    ${FOODS.map(fd => `<button class="food ${!viewMode && state.food === fd.id ? 'on' : ''}" data-food="${fd.id}"><span class="fi">${fd.icon}</span>
     <span><b>${fd.name}</b>　💰${fd.cost}／顆<small>飽食度 +${fd.sat}・幼魚成長 ×${fd.grow}</small></span></button>`).join('')}
-    <p class="hint">在水族箱點一下就會投放一顆飼料；點魚可以看牠的狀態。<br>💡 飽食度 ≥ 40 的同種成魚兩隻就會繁殖；飽食度歸零的魚不會長大、也不會產寶物。</p>`;
+    <p class="hint">選好飼料後，在水族箱點一下就會投放一顆。<br>💡 飽食度 ≥ 40 的同種成魚兩隻就會繁殖；飽食度歸零的魚不會長大、也不會產寶物。</p>`;
 }
 function toggleFood(show = $('#foodPop').hidden) {
   if (show) { renderFood(); if (menuOpen) closeMenu(); }
@@ -2424,7 +2436,9 @@ function toggleFood(show = $('#foodPop').hidden) {
 $('#modeFeed').onclick = () => toggleFood();
 $('#foodPop').addEventListener('click', e => {
   const b = e.target.closest('[data-food]'); if (!b) return;
-  state.food = b.dataset.food; updateModeLabel(); toggleFood(false); toast(`改用${FD[state.food].name}`); save();
+  if (b.dataset.food === 'view') { viewMode = true; toast('🔍 查看模式：點魚看狀態'); }
+  else { viewMode = false; state.food = b.dataset.food; selFishId = null; updateFishCard(); toast(`🍤 餵食：${FD[state.food].name}`); save(); }
+  updateModeLabel(); toggleFood(false);
 });
 // 遊戲內的確認視窗（網頁版不支援瀏覽器的 confirm）
 function ask(msg, yes = '確定', no = '取消') {
@@ -2825,7 +2839,7 @@ function renderTab() {
     h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
     if (!isAppMode()) h += `<h4>📱 畫面</h4><div ${col}><button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button></div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料。<br>・點或滑過寶物就能撿起來換金幣。<br>・點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。</div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
@@ -2898,7 +2912,7 @@ const ACTIONS = {
     const { x, y } = scenePos(p); for (let i = 0; i < 8; i++) particles.push({ x: x + rand(-30, 30), y: y - rand(10, 60), vy: -rand(15, 40), life: 1.4, icon: '✨' });
   },
   lookScene(arg) { const [id, n] = arg.split(':'), st = state.scene[id]; if (st && +n <= st.lv) { st.look = +n; selPiece = id; sceneT = -1; } },
-  viewFish(id) { selFishId = +id; closeMenu(); updateFishCard(); },
+  viewFish(id) { viewMode = true; updateModeLabel(); selFishId = +id; closeMenu(); updateFishCard(); },
   sellFish(id) { sellFish(+id); },
   releaseFish(id) { releaseFish(+id); },
   reset() { resetGame(); },
