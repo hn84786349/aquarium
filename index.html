@@ -55,8 +55,9 @@ canvas{display:block;touch-action:none;cursor:pointer}
 .menuHead{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-bottom:1px solid var(--border)}
 .menuHead b{font-size:19px;flex:1}
 /* 上層分頁（商店／我的魚）放在標題列，下層是商店的子分頁 */
-#topTabs{flex:1;display:flex;gap:6px;border:0}
-#topTabs button{flex:none;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:17px;font-weight:700;padding:6px 14px}
+#topTabs{flex:1 1 auto;min-width:0;display:flex;gap:5px;border:0}
+#topTabs button{flex:1 1 0;min-width:0;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:16px;font-weight:700;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:clip}
+#menuClose{flex:none;min-width:44px;font-size:18px;font-weight:700}
 #topTabs button.on{background:var(--accent);color:#2a1d00;border-color:var(--accent)}
 #tabs[hidden],#tabs2[hidden]{display:none}
 #tabs2{display:flex;border-bottom:1px solid var(--border)}
@@ -97,7 +98,7 @@ nav button.on{background:var(--panel2);color:var(--accent);box-shadow:inset 0 -3
   .menuHead{padding:4px 8px 4px 12px}
   .menuHead b{font-size:16px}
   .menuHead button{min-height:36px;padding:4px 10px;font-size:15px}
-  #topTabs button{padding:4px 12px;font-size:16px}
+  #topTabs button{padding:4px 2px;font-size:15px}
   #foodPop{top:calc(max(8px,env(safe-area-inset-top)) + 46px);max-height:calc(100% - 56px)}
   #foodPop button.food{min-height:40px;padding:3px 10px}
   nav button{min-height:38px;padding:4px 1px}
