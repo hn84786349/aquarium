@@ -58,7 +58,26 @@ canvas{display:block;touch-action:none;cursor:pointer}
 #topTabs{flex:1;display:flex;gap:6px;border:0}
 #topTabs button{flex:none;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:17px;font-weight:700;padding:6px 14px}
 #topTabs button.on{background:var(--accent);color:#2a1d00;border-color:var(--accent)}
-#tabs[hidden]{display:none}
+#tabs[hidden],#tabs2[hidden]{display:none}
+#tabs2{display:flex;border-bottom:1px solid var(--border)}
+/* 有禮物可以領時，按鈕右上角出現紅點 */
+#ctrls button.dot{position:relative}
+#ctrls button.dot::after{content:'';position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#ff4d4d;border:2px solid #fff}
+.dexGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
+.dex{position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:6px 4px;text-align:center}
+.dex img{width:100%;height:auto;aspect-ratio:168/100}
+.dex.unk img{filter:brightness(0);opacity:.35}
+.dex b{display:block;font-size:13px;font-weight:600}
+.dex.unk b{color:var(--muted)}
+.dex i{position:absolute;top:2px;right:5px;font-style:normal}
+.achR{font-weight:700;color:var(--accent);white-space:nowrap}
+button.mini{min-height:32px;padding:2px 8px;font-size:14px;margin-left:4px}
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:40}
+#flash.go{animation:flash .45s ease-out}
+@keyframes flash{from{opacity:.85}to{opacity:0}}
+#photoImg{display:block;width:100%;border-radius:10px;margin-bottom:12px}
+#photoBox .box{max-width:560px}
+#nameInput{width:100%;font:inherit;font-size:20px;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);margin-bottom:12px}
 /* 餵食按鈕按下去出現的飼料選單 */
 #foodPop{position:absolute;top:calc(max(8px,env(safe-area-inset-top)) + 54px);right:max(8px,env(safe-area-inset-right));z-index:7;width:min(360px,calc(100% - 16px));max-height:calc(100% - 70px);overflow-y:auto;
   background:rgba(10,20,35,.96);border:1px solid var(--border);border-radius:14px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
@@ -165,6 +184,8 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
   </div>
   <div id="ctrls">
     <button id="modeFeed" class="on" aria-haspopup="true" aria-expanded="false">🍤 餵食</button>
+    <button id="photoBtn" title="拍照" aria-label="拍照">📸</button>
+    <button id="giftBtn" title="每日禮物" aria-label="每日禮物">🎁</button>
     <button id="musicBtn" title="背景音樂" aria-label="背景音樂">🎵</button>
     <button id="menuBtn" aria-haspopup="dialog">☰ 選單</button>
   </div>
@@ -174,18 +195,26 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 </div>
 <div id="menuBack" hidden></div>
 <aside id="menu" hidden role="dialog" aria-label="選單">
-  <div class="menuHead"><nav id="topTabs"><button data-top="store" class="on">🛒 商店</button><button data-top="mine">🐠 我的魚</button><button data-top="settings">⚙️ 設定</button></nav><button id="menuClose" class="ghost">✕ 關閉</button></div>
+  <div class="menuHead"><nav id="topTabs"><button data-top="store" class="on">🛒 商店</button><button data-top="mine">🐠 我的魚</button><button data-top="collect">🏆 收藏</button><button data-top="settings">⚙️ 設定</button></nav><button id="menuClose" class="ghost" aria-label="關閉">✕</button></div>
   <nav id="tabs">
     <button data-tab="shop" class="on">魚</button>
     <button data-tab="star">⭐夢幻魚</button>
     <button data-tab="decor">設備・造景</button>
     <button data-tab="bg">背景</button>
   </nav>
+  <nav id="tabs2" hidden>
+    <button data-tab="dex">📖 圖鑑</button>
+    <button data-tab="ach">🏆 成就</button>
+    <button data-tab="daily">📅 每日</button>
+  </nav>
   <div id="tab"></div>
 </aside>
 <div id="toast"></div>
 <div id="welcome" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="welcomeMsg"></p><div class="big" id="welcomeAmt"></div><div class="row"><button id="welcomeOk" class="on">收下金幣</button></div></div></div>
 <div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><a id="saveLink" class="bigLink" hidden target="_blank" rel="noopener">🔗 直接開啟新網站並帶入進度<small>最簡單，不用複製貼上</small></a><textarea id="saveText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
+<div id="photoBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p>📸 拍好了！可以分享給家人，或長按照片儲存。</p><img id="photoImg" alt="水族箱照片"><div class="row"><button class="ghost" id="photoClose">關閉</button><button id="photoShare" class="on">分享</button></div></div></div>
+<div id="nameBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p>✏️ 幫牠取個新名字（最多 8 個字）</p><input id="nameInput" maxlength="8" autocomplete="off"><div class="row"><button class="ghost" id="nameCancel">取消</button><button id="nameOk" class="on">確定</button></div></div></div>
+<div id="flash"></div>
 <div id="ask" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="askMsg"></p><div class="row"><button class="ghost" id="askNo">取消</button><button id="askYes">確定</button></div></div></div>
 
 <script>
@@ -230,6 +259,11 @@ const TREASURE = {
   orb:     { icon: '🔮', name: '龍宮寶珠', value: 150000 },
   starstone: { icon: '🌟', name: '星辰寶石', value: 400000 },
   heart:   { icon: '💖', name: '海洋之心', value: 1000000 },
+  // 節日寶物（價值依掉落的魚另外計算）
+  redpacket: { icon: '🧧', name: '紅包', value: 1 },
+  mooncake:  { icon: '🥮', name: '月餅', value: 1 },
+  bouquet:   { icon: '💐', name: '花束', value: 1 },
+  xmasgift:  { icon: '🎁', name: '聖誕禮物', value: 1 },
 };
 const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
 
@@ -921,12 +955,14 @@ function newState() {
   return {
     coins: 100, capLv: 0, feederLv: 0, snailLv: 0, netLv: 0, nurseryLv: 0, pumpLv: 0, food: 'basic',
     bg: 'fresh', ownedBg: ['fresh'], scene: newScene(),
-    breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0,
+    breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0, maxTier: 0, dayNight: true,
+    dex: { seen: {}, shiny: {}, claimed: [] }, ach: {}, stats: { born: 0, released: 0, visitors: 0 },
+    daily: { date: '', gift: false, streak: 0, last: '', tasks: [] },
     stars: 0, starEarned: 0, starOwned: [], starShown: [],
   };
 }
 let pellets = [], particles = [], texts = [], bubbles = [], starFish = [], releasing = [], coinFx = [];
-let tab = 'shop', storeTab = 'shop', selFishId = null, B = {};
+let tab = 'shop', storeTab = 'shop', collectTab = 'dex', selFishId = null, B = {};
 let snails = [{ x: 500, dir: 1 }, { x: 900, dir: -1 }], feederT = 0, T = 0;
 const capacity = () => CAP_BASE + CAP_STEP * state.capLv;
 // 魚店顯示到哪一種：曾經擁有過的最高級魚往後 3 種
@@ -974,6 +1010,10 @@ function load(fromCode) {
       state.starOwned = (state.starOwned || []).filter(id => SSP[id]);
       state.starShown = (state.starShown || []).filter(id => state.starOwned.includes(id)).slice(0, MAX_SHOWN);
       state.ownedBg = (state.ownedBg || ['fresh']).filter(id => BG[id]);
+      // 圖鑑：把現在擁有的魚都記進去
+      state.maxTier = Math.max(state.maxTier || 0, ...state.fish.map(f => SP[f.sp].tier));
+      for (const f of state.fish) { state.dex.seen[f.sp] = 1; if (f.shiny && !state.dex.shiny[f.sp]) state.dex.shiny[f.sp] = f.shiny; }
+      for (const id of state.starOwned) state.dex.seen[id] = 1;
       if (!BG[state.bg]) state.bg = 'fresh';
       if (!FD[state.food]) state.food = 'basic';
       // 容量上限改回 50 隻：之前多擴充的等級退還金幣
@@ -984,6 +1024,7 @@ function load(fromCode) {
   // 新遊戲：送兩隻孔雀魚
   spawnFish('guppy', 400, 250, 1, 80);
   spawnFish('guppy', 600, 300, 1, 80);
+  state.dex.seen.guppy = 1;
 }
 
 // 舊版「擺飾」轉成新版「造景」：同類效果的擺飾換成對應的造景（取最高等級），重複的依原本賣價退還
@@ -2111,7 +2152,7 @@ function drawFish(c, f, t, alpha = 1) {
   c.save(); c.translate(f.x, f.y); c.scale(f.face, 1);
   c.rotate(clamp(Math.atan2(f.vy, Math.abs(f.vx) + 20), -.45, .45));
   if (f.hunger <= 0) c.globalAlpha = alpha * .75;
-  sp.draw(c, s, w, f.growth < .35 ? 1.35 : 1, f);
+  if (f.shiny) shinyDraw(c, sp, s, w, f); else sp.draw(c, s, w, f.growth < .35 ? 1.35 : 1, f);
   c.restore(); c.globalAlpha = 1;
   if (alpha < 1) return;
   if (sp.star) { if (f.id === selFishId) { c.strokeStyle = '#ffc940'; c.setLineDash([5, 4]); c.lineWidth = 2; ell(c, f.x, f.y, s * 1.8 + 6, s + 10); c.stroke(); c.setLineDash([]); } return; }
@@ -2201,8 +2242,8 @@ function updateFish(f, dt) {
       f.dropT -= dt * B.drop;
       if (f.dropT <= 0) {
         f.dropT = sp.dropEvery * rand(.8, 1.2);
-        const type = weighted(sp.pool);
-        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: sp.mult, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+        const ev = eventTreasure(sp), type = ev ? ev.type : weighted(sp.pool);
+        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: (ev ? ev.mult : sp.mult) * (f.shiny ? 3 : 1), vy: 0, landed: false, age: 0, bob: rand(0, 6) });
       }
     }
   }
@@ -2223,6 +2264,13 @@ function updateBreeding(dt) {
       for (let i = 0; i < 6; i++) particles.push({ x: x + rand(-20, 20), y: y + rand(-10, 10), vy: -rand(20, 45), life: 1.6, icon: '💗' });
       floatText(x, y - 25, `${sp.name}寶寶「${baby.name}」誕生了！`, '#ffb3d9');
       toast(`🎉 ${sp.name}生了小魚！`);
+      // 小機率生出稀有色（金色／白色）的小魚
+      if (Math.random() < SHINY_RATE) {
+        baby.shiny = Math.random() < .5 ? 'gold' : 'white';
+        for (let i = 0; i < 12; i++) particles.push({ x: x + rand(-30, 30), y: y + rand(-20, 20), vy: -rand(20, 60), life: 2, icon: '✨' });
+        setTimeout(() => ask(`✨ 太幸運了！\n生出了稀有的「${SHINY_NAME[baby.shiny]}${sp.name}」！\n\n稀有色的魚寶物價值 3 倍，賣出和放生也是 3 倍。`, '好棒！', null), 400);
+      }
+      dexSee(sp.id, baby.shiny); state.stats.born++; taskProg('breed');
       if (menuOpen && tab === 'mine') renderTab();
     }
   }
@@ -2230,6 +2278,7 @@ function updateBreeding(dt) {
 
 function update(dt) {
   T += dt;
+  updateVisitor(dt);
   for (const f of state.fish) updateFish(f, dt);
   for (const f of starFish) updateStarFish(f, dt);
   for (let i = releasing.length - 1; i >= 0; i--) {
@@ -2349,8 +2398,8 @@ function drawDynamicBg() {
   // 海中微粒（海雪），深色背景會發光
   for (let i = 0; i < 46; i++) {
     const x = ((i * 157.3 + T * (4 + i % 5) * (i % 2 ? 1 : -1)) % W + W) % W, y = (i * 83.7 + T * (6 + i % 4)) % (FLOOR - 20) + 10;
-    const a = th.snowGlow ? .35 + .35 * Math.sin(T * 2 + i) : .28 + .12 * Math.sin(T + i);
-    ctx.fillStyle = th.snowGlow ? `rgba(150,255,235,${a})` : `rgba(255,255,255,${a})`;
+    const glowS = th.snowGlow || nightAmt > .5, a = glowS ? .35 + .35 * Math.sin(T * 2 + i) : .28 + .12 * Math.sin(T + i);
+    ctx.fillStyle = glowS ? `rgba(150,255,235,${a})` : `rgba(255,255,255,${a})`;
     circle(ctx, x, y, 1 + (i % 3) * .6); ctx.fill();
   }
   if (bg.id === 'galaxy' && Math.sin(T * .7) > .995) {
@@ -2372,6 +2421,7 @@ function render() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(bgCanvas, 0, 0);
   ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  drawEventBack();
   drawDynamicBg();
   drawScene(1);
   for (const p of pellets) {
@@ -2394,6 +2444,7 @@ function render() {
   for (const f of sorted) drawFish(ctx, f, T);
   for (const f of starFish) drawFish(ctx, f, T);
   for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
+  drawVisitor();
   for (let i = 0; i < snailCount(); i++) {
     const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);
   }
@@ -2405,6 +2456,7 @@ function render() {
   }
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
   for (const b of bubbles) { ell(ctx, b.x, b.y, b.r, b.r); ctx.stroke(); }
+  drawNight(); drawEventFront();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life); emoji(ctx, p.icon, p.x, p.y, 22); }
   ctx.globalAlpha = 1;
@@ -2429,7 +2481,7 @@ function collectTreasure(t) {
   const i = state.treasures.indexOf(t); if (i < 0) return;
   state.treasures.splice(i, 1);
   const v = Math.round(TREASURE[t.type].value * (t.mult || 1) * B.value);
-  state.coins += v; state.earned += v;
+  state.coins += v; state.earned += v; taskProg('collect');
   // 寶物變成金幣：價值越高，金幣越多、顏色從銅 → 銀 → 金
   const tier = v < 40 ? 0 : v < 400 ? 1 : 2, n = [2, 3, 5][tier];
   for (let k = 0; k < n; k++) coinFx.push({ x0: t.x + rand(-10, 10), y0: t.y + rand(-6, 6), t: -k * .07, dur: .85, tier, spin: rand(0, 6) });
@@ -2461,12 +2513,13 @@ canvas.addEventListener('pointerdown', e => {
   dragging = true; const p = worldPos(e);
   // 飼料選單打開時，點水族箱只是把選單關掉
   if (!$('#foodPop').hidden) { toggleFood(false); dragging = false; return; }
+  if (visitorAt(p)) { tapVisitor(); return; }
   const t = treasureAt(p); if (t) { collectTreasure(t); return; }
   // 查看模式：點魚看狀態、點造景升級，不會投放飼料
   if (viewMode) {
     let hit = null, hd = 1e9;
     for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.4 + 8, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < s && d < hd) { hd = d; hit = f; } }
-    if (hit) { selFishId = hit.id; updateFishCard(); return; }
+    if (hit) { if (hit.id !== selFishId) taskProg('view'); selFishId = hit.id; updateFishCard(); return; }
     const pc = !treasureAt(p, 60) && sceneAt(p);
     if (pc) { openScene(pc.id); return; }
     selFishId = null; updateFishCard(); return;
@@ -2474,7 +2527,7 @@ canvas.addEventListener('pointerdown', e => {
   // 餵食模式：點哪裡就投放飼料（點到魚也一樣）
   const fd = FD[state.food];
   if (state.coins < fd.cost) { floatText(p.x, p.y, '金幣不足', '#ff8080'); return; }
-  state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR))));
+  state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR)))); taskProg('feed');
 });
 canvas.addEventListener('pointermove', e => { if (!dragging && e.pointerType !== 'mouse') return; const t = treasureAt(worldPos(e), 24); if (t && (dragging || e.buttons === 0)) collectTreasure(t); });
 window.addEventListener('pointerup', () => dragging = false);
@@ -2722,8 +2775,8 @@ async function resetGame() {
 }
 
 // 賣魚最多拿回價格的 25%，而且不超過這隻魚大約 1 小時的產值，避免「繁殖後賣小魚」比養魚賺得還多
-function sellPrice(f) { const sp = SP[f.sp]; return Math.floor(Math.min(sp.price * .25, sp.income * 3600) * (.2 + .8 * f.growth)); }
-function releaseStars(f) { const st = SP[f.sp].stars; return f.growth >= 1 ? st : Math.floor(st * f.growth * .5); }
+function sellPrice(f) { const sp = SP[f.sp]; return Math.floor(Math.min(sp.price * .25, sp.income * 3600) * (.2 + .8 * f.growth) * (f.shiny ? 3 : 1)); }
+function releaseStars(f) { const st = SP[f.sp].stars * (f.shiny ? 3 : 1); return f.growth >= 1 ? st : Math.floor(st * f.growth * .5); }
 const releaseOK = new Set();
 async function releaseFish(id) {
   let f = state.fish.find(x => x.id === id); if (!f) return;
@@ -2736,7 +2789,7 @@ async function releaseFish(id) {
   }
   f = state.fish.find(x => x.id === id); if (!f) return;
   state.fish.splice(state.fish.indexOf(f), 1);
-  state.stars += st; state.starEarned += st;
+  state.stars += st; state.starEarned += st; state.stats.released++; taskProg('release');
   releasing.push({ f, life: 1.6 });
   floatText(f.x, f.y - 25, st ? `+⭐${st}` : '再見～', '#fff27a');
   toast(`🌊 ${f.name}回到大海了${st ? `，獲得 ⭐${st}` : ''}`);
@@ -2756,7 +2809,7 @@ function updateFishCard() {
     return;
   }
   const sp = SP[f.sp];
-  el.innerHTML = `<b>${f.name}</b>　<small>${sp.name}・${stageName(f)}</small>
+  el.innerHTML = `<b>${f.shiny ? '✨' : ''}${f.name}</b>　<small>${f.shiny ? SHINY_NAME[f.shiny] : ''}${sp.name}・${stageName(f)}</small><button class="ghost mini" data-rename="${f.id}">✏️ 改名</button>
     <div>飽食度 ${Math.round(f.hunger)}%<div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></div>
     <div style="margin-top:4px">${f.growth >= 1 ? `下次產寶：約 ${Math.max(0, Math.ceil(f.dropT / B.drop))} 秒` : `成長 ${Math.floor(f.growth * 100)}%（飼料加速 ×${f.foodMult}）`}
     ${f.growth < 1 ? `<div class="bar"><i style="width:${f.growth * 100}%;background:#4aa8ff"></i></div>` : ''}</div>
@@ -2764,6 +2817,7 @@ function updateFishCard() {
 }
 $('#fishCard').addEventListener('click', e => {
   if (e.target.dataset.close) { selFishId = null; updateFishCard(); }
+  if (e.target.dataset.rename) openRename(+e.target.dataset.rename);
   if (e.target.dataset.sell) sellFish(+e.target.dataset.sell);
   if (e.target.dataset.release) releaseFish(+e.target.dataset.release);
   if (e.target.dataset.unshow) { ACTIONS.toggleShow(e.target.dataset.unshow); renderTab(); save(); }
@@ -2816,14 +2870,16 @@ $('#menuBack').onclick = () => { if (performance.now() - menuOpenedAt > 450) clo
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
 // 上層分頁：商店（魚、夢幻魚、設備・造景、背景）／我的魚
 function setTab(t) {
-  const top = t === 'mine' || t === 'settings' ? t : 'store';
-  tab = t; if (top === 'store') storeTab = t;
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  const top = t === 'mine' || t === 'settings' ? t : ['dex', 'ach', 'daily'].includes(t) ? 'collect' : 'store';
+  tab = t; if (top === 'store') storeTab = t; if (top === 'collect') collectTab = t;
+  document.querySelectorAll('#tabs button, #tabs2 button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('#topTabs button').forEach(b => b.classList.toggle('on', b.dataset.top === top));
-  $('#tabs').hidden = top !== 'store'; tabEl.scrollTop = 0; renderTab();
+  $('#tabs').hidden = top !== 'store'; $('#tabs2').hidden = top !== 'collect'; tabEl.scrollTop = 0; renderTab();
 }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
-$('#topTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.top === 'store' ? storeTab : b.dataset.top); });
+$('#topTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.top === 'store' ? storeTab : b.dataset.top === 'collect' ? collectTab : b.dataset.top); });
+$('#tabs2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
+$('#giftBtn').onclick = () => { setTab('daily'); if (!menuOpen) openMenu(); };
 
 function costBtn(act, arg, cost, label, extra = '', star = false) {
   return `<button data-act="${act}" data-arg="${arg}" data-cost="${cost}" ${star ? 'data-star="1" class="star"' : ''} ${extra}>${label} ${curIcon(star)}${fmt(cost)}</button>`;
@@ -2894,18 +2950,20 @@ function renderTab() {
         <div class="info"><b>${sp.name} × ${list.length}</b><small>成魚 ${adults.length}・未成年 ${list.length - adults.length}</small></div></div>
         <small style="color:var(--muted)">💞 ${status}</small><div class="bar"><i style="width:${prog * 100}%;background:#ff8fc8"></i></div>`;
       for (const f of list) {
-        h += `<div class="row fishrow" style="margin-top:6px;font-size:13px"><span style="flex:1;min-width:110px">${f.name}・${stageName(f)}${f.growth < 1 ? ` ${Math.floor(f.growth * 100)}%` : ''}
+        h += `<div class="row fishrow" style="margin-top:6px;font-size:13px"><span style="flex:1;min-width:110px">${f.shiny ? `✨${SHINY_NAME[f.shiny]}・` : ''}${f.name}・${stageName(f)}${f.growth < 1 ? ` ${Math.floor(f.growth * 100)}%` : ''}
           <div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></span>
           <button class="ghost" data-act="viewFish" data-arg="${f.id}">看</button><button data-act="sellFish" data-arg="${f.id}">賣 💰${fmt(sellPrice(f))}</button><button class="star" data-act="releaseFish" data-arg="${f.id}">放生 ⭐${releaseStars(f)}</button></div>`;
       }
       h += `</div>`;
     }
+  } else if (['dex', 'ach', 'daily'].includes(tab)) {
+    h += renderCollect();
   } else if (tab === 'settings') {
     const col = 'class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:8px"';
     h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
-    if (!isAppMode()) h += `<h4>📱 畫面</h4><div ${col}><button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button></div>`;
+    h += `<h4>📱 畫面</h4><div ${col}>${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="toggleNight">🌙 晝夜變化（晚上會變成月光色調）：<b>${state.dayNight === false ? '關' : '開'}</b></button></div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。</div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
@@ -2958,7 +3016,7 @@ const ACTIONS = {
     if (state.fish.length >= capacity()) return toast('水族箱已滿！');
     if (!pay(SP[id].price)) return;
     const f = spawnFish(id, rand(100, W - 100), TOP, 0.4, 70); f.ty = rand(150, 400);
-    state.maxTier = Math.max(state.maxTier || 0, SP[id].tier);
+    state.maxTier = Math.max(state.maxTier || 0, SP[id].tier); dexSee(id); taskProg('buy');
     toast(`買了一隻${SP[id].name}「${f.name}」！`);
   },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
@@ -2986,12 +3044,14 @@ const ACTIONS = {
   importSave() { importSave(); },
   fullscreen() { toggleFullscreen(); },
   cloudLogin() { Cloud.login(); },
+  claimGift() { claimGift(); },
+  toggleNight() { state.dayNight = state.dayNight === false; updateNight(); },
   cloudLogout() { Cloud.logout(); },
   cloudRestore() { Cloud.restore(); },
   async cloudUp() { if (await Cloud.upload(true)) toast('☁️ 已備份到雲端'); },
   buyStarFish(id) {
     if (state.starOwned.includes(id) || !pay(SSP[id].cost, true)) return;
-    state.starOwned.push(id);
+    state.starOwned.push(id); dexSee(id);
     if (state.starShown.length < MAX_SHOWN) { state.starShown.push(id); syncStarFish(); toast(`🌟 ${SSP[id].name}來到你的水族箱了！`); }
     else toast(`🌟 兌換了${SSP[id].name}！水族箱已放 ${MAX_SHOWN} 隻，先收回一隻才能放入`);
   },
@@ -3008,8 +3068,299 @@ tabEl.addEventListener('click', e => {
   ACTIONS[b.dataset.act](b.dataset.arg); renderTab(); save();
 });
 
+// ====== 收藏：圖鑑、成就、每日禮物與任務 ======
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+const ALL_DEX = () => [...SPECIES, ...STARFISH];
+function dexSee(id, shiny) {
+  const d = state.dex; if (!d.seen[id]) { d.seen[id] = 1; toast(`📖 圖鑑新增：${getSp(id).name}`); }
+  if (shiny && !d.shiny[id]) d.shiny[id] = shiny;
+}
+// 星星獎勵依進度成長：大約是目前最高級魚放生星星的一成
+const rewardStars = () => Math.max(3, Math.round((SPECIES[Math.min(SPECIES.length - 1, state.maxTier || 0)].stars || 1) * .1));
+const rewardCoins = sec => Math.max(200, Math.round(incomePerSec() * sec));
+function grant(coins, stars, title) {
+  if (coins) { state.coins += coins; state.earned += coins; }
+  if (stars) { state.stars += stars; state.starEarned += stars; }
+  toast(`${title}${coins ? `　💰${fmt(coins)}` : ''}${stars ? `　⭐${stars}` : ''}`);
+  for (let i = 0; i < 10; i++) particles.push({ x: W / 2 + rand(-120, 120), y: H * .45 + rand(-40, 40), vy: -rand(20, 60), life: 1.5, icon: i % 2 ? '✨' : '⭐' });
+}
+// 圖鑑收集獎勵
+const DEX_GOALS = [[10, 10], [20, 30], [30, 80], [40, 150], [50, 300], [56, 600]];
+function checkDex() {
+  const n = Object.keys(state.dex.seen).length;
+  for (const [goal, st] of DEX_GOALS) if (n >= goal && !state.dex.claimed.includes(goal)) { state.dex.claimed.push(goal); grant(0, st, `📖 圖鑑收集 ${goal} 種！`); }
+}
+// 成就：達成就自動發獎
+const ACHS = [
+  { id: 'earn1', icon: '💰', name: '小有積蓄', desc: '累計賺到 1 萬金幣', test: () => state.earned >= 1e4, stars: 5 },
+  { id: 'earn2', icon: '💰', name: '小富翁', desc: '累計賺到 100 萬金幣', test: () => state.earned >= 1e6, stars: 15 },
+  { id: 'earn3', icon: '💰', name: '大富翁', desc: '累計賺到 1 億金幣', test: () => state.earned >= 1e8, stars: 40 },
+  { id: 'earn4', icon: '💎', name: '海洋首富', desc: '累計賺到 100 億金幣', test: () => state.earned >= 1e10, stars: 100 },
+  { id: 'earn5', icon: '👑', name: '龍宮財神', desc: '累計賺到 1 兆金幣', test: () => state.earned >= 1e12, stars: 300 },
+  { id: 'fish20', icon: '🐟', name: '熱鬧的水族箱', desc: '水族箱養到 20 隻魚', test: () => state.fish.length >= 20, stars: 10 },
+  { id: 'fish50', icon: '🐠', name: '滿滿的水族箱', desc: '水族箱養滿 50 隻魚', test: () => state.fish.length >= 50, stars: 50 },
+  { id: 'born10', icon: '🍼', name: '育兒新手', desc: '累計生出 10 隻小魚', test: () => state.stats.born >= 10, stars: 10 },
+  { id: 'born100', icon: '🍼', name: '育兒達人', desc: '累計生出 100 隻小魚', test: () => state.stats.born >= 100, stars: 60 },
+  { id: 'rel10', icon: '🌊', name: '回歸大海', desc: '累計放生 10 隻魚', test: () => state.stats.released >= 10, stars: 10 },
+  { id: 'rel100', icon: '🌊', name: '海洋守護者', desc: '累計放生 100 隻魚', test: () => state.stats.released >= 100, stars: 60 },
+  { id: 'shiny', icon: '🌈', name: '閃閃發亮', desc: '得到第一隻稀有色的魚', test: () => Object.keys(state.dex.shiny).length > 0, stars: 20 },
+  { id: 'visit10', icon: '🐋', name: '好客的主人', desc: '招待神秘訪客 10 次', test: () => state.stats.visitors >= 10, stars: 20 },
+  { id: 'scene1', icon: '🪸', name: '造景入門', desc: '8 種造景都擁有', test: () => SCENE.every(p => state.scene[p.id].lv >= 1), stars: 30 },
+  { id: 'scene5', icon: '🏰', name: '夢幻造景', desc: '任一造景升到 Lv.5', test: () => SCENE.some(p => state.scene[p.id].lv >= 5), stars: 30 },
+  { id: 'sceneAll', icon: '🏯', name: '造景大師', desc: '全部造景升到 Lv.5', test: () => SCENE.every(p => state.scene[p.id].lv >= 5), stars: 300 },
+  { id: 'bg5', icon: '🖼️', name: '背景收藏家', desc: '擁有 5 種背景', test: () => state.ownedBg.length >= 5, stars: 20 },
+  { id: 'dream5', icon: '🌟', name: '夢幻家族', desc: '兌換 5 種夢幻生物', test: () => state.starOwned.length >= 5, stars: 50 },
+  { id: 'streak7', icon: '📅', name: '天天見面', desc: '連續 7 天領取每日禮物', test: () => state.daily.streak >= 7, stars: 30 },
+];
+function checkAch() {
+  for (const a of ACHS) if (!state.ach[a.id] && a.test()) { state.ach[a.id] = 1; grant(0, a.stars, `🏆 達成成就「${a.name}」！`); }
+  checkDex();
+}
+// 每日任務
+const TASKS = {
+  feed:    { name: n => `餵食 ${n} 次`, n: 20, icon: '🍤' },
+  collect: { name: n => `撿 ${n} 個寶物`, n: 40, icon: '🐚' },
+  breed:   { name: n => `生出 ${n} 隻小魚`, n: 1, icon: '🍼' },
+  buy:     { name: n => `買 ${n} 隻魚`, n: 1, icon: '🛒' },
+  release: { name: n => `放生 ${n} 隻魚`, n: 1, icon: '🌊' },
+  visitor: { name: n => `招待 ${n} 次神秘訪客`, n: 1, icon: '🐋' },
+  view:    { name: n => `查看 ${n} 隻魚的狀態`, n: 3, icon: '🔍' },
+};
+function newDay() {
+  const d = state.daily, ids = Object.keys(TASKS), r = mulberry(Date.now() / 864e5 | 0), pickd = [];
+  while (pickd.length < 3) { const id = ids[Math.floor(r() * ids.length)]; if (!pickd.includes(id)) pickd.push(id); }
+  d.date = todayStr(); d.gift = false;
+  d.tasks = pickd.map(id => ({ id, n: TASKS[id].n, p: 0, done: false }));
+  if (menuOpen && tab === 'daily') renderTab();
+  updateGiftDot();
+}
+function taskProg(id, k = 1) {
+  if (!state.daily || state.daily.date !== todayStr()) return;
+  for (const t of state.daily.tasks) if (t.id === id && !t.done) {
+    t.p = Math.min(t.n, t.p + k);
+    if (t.p >= t.n) { t.done = true; grant(rewardCoins(300), rewardStars(), `📅 完成每日任務「${TASKS[id].name(t.n)}」！`); }
+    if (menuOpen && tab === 'daily' && !panelPressed) renderTab();
+  }
+}
+function claimGift() {
+  const d = state.daily; if (d.gift) return;
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  d.streak = d.last === todayStr(y) ? (d.streak || 0) + 1 : 1; d.last = todayStr(); d.gift = true;
+  const k = 1 + Math.min(d.streak, 7) * .15;
+  grant(rewardCoins(600 * k), rewardStars() * (d.streak % 7 === 0 ? 3 : 1), `🎁 每日禮物（連續 ${d.streak} 天）`);
+  updateGiftDot();
+}
+const updateGiftDot = () => $('#giftBtn').classList.toggle('dot', !!state.daily && !state.daily.gift);
+function dexCard(sp) {
+  const seen = state.dex.seen[sp.id], sh = state.dex.shiny[sp.id];
+  return `<div class="dex ${seen ? '' : 'unk'}"><img src="${PREV[sp.id]}" alt=""><b>${seen ? sp.name : '？？？'}</b>${sh ? `<i title="看過稀有色">✨</i>` : ''}</div>`;
+}
+function renderCollect() {
+  let h = '';
+  if (tab === 'dex') {
+    const n = Object.keys(state.dex.seen).length, all = ALL_DEX().length, next = DEX_GOALS.find(([g]) => !state.dex.claimed.includes(g));
+    h += `<div class="bonus">收集進度：<b>${n} / ${all}</b> 種　${next ? `（收集 ${next[0]} 種可以得到 ⭐${next[1]}）` : '🎉 全部收集完成！'}<div class="bar"><i style="width:${n / all * 100}%;background:var(--accent)"></i></div>
+      ✨ 代表看過這種魚的稀有色（金色或白色），稀有色的小魚偶爾會在繁殖時出生。</div>`;
+    h += `<h4>🐟 魚（${SPECIES.filter(s => state.dex.seen[s.id]).length}/${SPECIES.length}）</h4><div class="dexGrid">${SPECIES.map(dexCard).join('')}</div>`;
+    h += `<h4>🌟 夢幻生物（${STARFISH.filter(s => state.dex.seen[s.id]).length}/${STARFISH.length}）</h4><div class="dexGrid">${STARFISH.map(dexCard).join('')}</div>`;
+  } else if (tab === 'ach') {
+    const n = ACHS.filter(a => state.ach[a.id]).length;
+    h += `<div class="bonus">已達成 <b>${n} / ${ACHS.length}</b> 個成就，達成時會自動得到星星。</div>`;
+    for (const a of ACHS) {
+      const ok = state.ach[a.id];
+      h += `<div class="card ach ${ok ? 'sel' : ''}"><div class="ico" style="${ok ? '' : 'filter:grayscale(1);opacity:.45'}">${a.icon}</div><div class="info"><b>${a.name}</b><small>${a.desc}</small></div>
+        <span class="achR">${ok ? '✅ 已達成' : `⭐${a.stars}`}</span></div>`;
+    }
+  } else if (tab === 'daily') {
+    const d = state.daily;
+    h += `<div class="card gift ${d.gift ? '' : 'sel'}"><div class="ico">🎁</div><div class="info"><b>今日禮物</b><small>${d.gift ? `今天已經領過了，明天再來喔！（已連續 ${d.streak} 天）` : `連續天數越多禮物越大，每連續 7 天有 3 倍星星！（目前連續 ${d.streak || 0} 天）`}</small></div>
+      ${d.gift ? '<button disabled>已領取</button>' : '<button class="on" data-act="claimGift">領取</button>'}</div>`;
+    h += `<h4>📅 今日任務（每天更新，完成自動得到獎勵）</h4>`;
+    for (const t of d.tasks) {
+      const T0 = TASKS[t.id];
+      h += `<div class="card ${t.done ? 'sel' : ''}"><div class="ico">${T0.icon}</div><div class="info"><b>${T0.name(t.n)}</b><small>${t.done ? '✅ 完成！' : `進度 ${t.p} / ${t.n}`}　獎勵 💰${fmt(rewardCoins(300))} ⭐${rewardStars()}</small>
+        <div class="bar"><i style="width:${t.p / t.n * 100}%;background:${t.done ? 'var(--good)' : '#4aa8ff'}"></i></div></div></div>`;
+    }
+  }
+  return h;
+}
+
+// ====== 拍照分享 ======
+let photoFile = null;
+function takePhoto() {
+  const cv = document.createElement('canvas'); cv.width = canvas.width; cv.height = canvas.height;
+  const c = cv.getContext('2d'); c.drawImage(canvas, 0, 0);
+  const k = canvas.width / W, d = new Date(), label = `🐠 夢幻水族箱　${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  c.font = `bold ${Math.round(20 * k)}px "Noto Sans TC","PingFang TC",sans-serif`; c.textAlign = 'right'; c.textBaseline = 'bottom';
+  c.lineWidth = 5 * k; c.strokeStyle = 'rgba(0,0,0,0.45)'; c.strokeText(label, cv.width - 14 * k, cv.height - 10 * k);
+  c.fillStyle = '#ffffff'; c.fillText(label, cv.width - 14 * k, cv.height - 10 * k);
+  const url = cv.toDataURL('image/jpeg', .9);
+  $('#flash').classList.remove('go'); void $('#flash').offsetWidth; $('#flash').classList.add('go');
+  $('#photoImg').src = url; $('#photoBox').hidden = false; photoFile = null;
+  $('#photoShare').textContent = navigator.share ? '分享' : '下載照片';
+  cv.toBlob(b => { photoFile = new File([b], `水族箱-${d.getFullYear()}${d.getMonth() + 1}${d.getDate()}.jpg`, { type: 'image/jpeg' }); }, 'image/jpeg', .9);
+}
+$('#photoBtn').onclick = takePhoto;
+$('#photoClose').onclick = () => { $('#photoBox').hidden = true; };
+$('#photoShare').onclick = async () => {
+  try {
+    if (photoFile && navigator.canShare && navigator.canShare({ files: [photoFile] })) await navigator.share({ files: [photoFile], title: '我的水族箱' });
+    else { const a = document.createElement('a'); a.href = $('#photoImg').src; a.download = '水族箱.jpg'; a.click(); }
+  } catch (e) { if (e.name !== 'AbortError') toast('分享失敗，可以長按照片儲存'); }
+};
+
+// ====== 幫魚改名 ======
+let renameId = null;
+function openRename(id) {
+  const f = state.fish.find(x => x.id === id); if (!f) return;
+  renameId = id; $('#nameInput').value = f.name; $('#nameBox').hidden = false; setTimeout(() => $('#nameInput').focus(), 50);
+}
+$('#nameCancel').onclick = () => { $('#nameBox').hidden = true; };
+$('#nameOk').onclick = () => {
+  const f = state.fish.find(x => x.id === renameId), v = $('#nameInput').value.trim().slice(0, 8);
+  if (f && v) { f.name = v; toast(`改名為「${v}」`); save(); updateFishCard(); if (menuOpen) renderTab(); }
+  $('#nameBox').hidden = true;
+};
+$('#nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameOk').click(); });
+
+// ====== 稀有色小魚（金色／白色） ======
+const SHINY_RATE = 1 / 25;
+const SHINY_NAME = { gold: '金色', white: '白色' };
+const SHC = document.createElement('canvas'), shx = SHC.getContext('2d');
+function shinyDraw(c, sp, s, w, f) {
+  const k = scale * 1.2, bw = s * 5, bh = s * 3.8, pw = Math.ceil(bw * k), ph = Math.ceil(bh * k);
+  if (SHC.width < pw || SHC.height < ph) { SHC.width = Math.max(SHC.width, pw); SHC.height = Math.max(SHC.height, ph); }
+  shx.setTransform(1, 0, 0, 1, 0, 0); shx.clearRect(0, 0, pw, ph);
+  shx.setTransform(k, 0, 0, k, pw / 2, ph / 2); sp.draw(shx, s, w, f.growth < .35 ? 1.35 : 1, f);
+  shx.setTransform(1, 0, 0, 1, 0, 0); shx.globalCompositeOperation = 'source-atop';
+  shx.fillStyle = f.shiny === 'gold' ? 'rgba(255,196,40,0.55)' : 'rgba(255,255,255,0.62)'; shx.fillRect(0, 0, pw, ph);
+  shx.globalCompositeOperation = 'source-over';
+  glowDot(c, 0, 0, s * 1.8, f.shiny === 'gold' ? '#ffd860' : '#e8f4ff', .3 + .15 * Math.sin(T * 3 + f.phase));
+  c.drawImage(SHC, 0, 0, pw, ph, -bw / 2, -bh / 2, bw, bh);
+}
+
+// ====== 神秘訪客：偶爾游過水族箱，點牠會送禮物 ======
+let visitor = null, visitorT = rand(90, 200);
+const VISITORS = [
+  { id: 'whale', name: '大鯨魚', size: 90, speed: 50, w: 1.5, h: .5 },
+  { id: 'turtle', name: '金色海龜', size: 50, speed: 42, w: 1.1, h: .5 },
+  { id: 'school', name: '小魚群', size: 14, speed: 85, w: 5, h: 2.6 },
+];
+function spawnVisitor() {
+  const v = pick(VISITORS), dir = Math.random() < .5 ? 1 : -1;
+  visitor = { v, dir, x: dir > 0 ? -v.size * 3 : W + v.size * 3, y: rand(TOP + 90, FLOOR - 170), t: 0, tapped: false };
+  toast(`👀 有${v.name}游過來了，點牠看看！`);
+}
+function updateVisitor(dt) {
+  if (!visitor) { visitorT -= dt; if (visitorT <= 0 && !document.hidden) spawnVisitor(); return; }
+  const V = visitor; V.t += dt; V.x += V.dir * V.v.speed * (V.tapped ? 2.4 : 1) * dt;
+  if (V.x < -V.v.size * 4 || V.x > W + V.v.size * 4) { visitor = null; visitorT = rand(180, 360); }
+}
+function drawVisitor() {
+  if (!visitor) return;
+  const V = visitor, s = V.v.size, y = V.y + Math.sin(V.t * .8) * 14, w = Math.sin(V.t * 3) * .12;
+  ctx.save(); ctx.translate(V.x, y); ctx.scale(V.dir, 1);
+  if (!V.tapped) glowDot(ctx, 0, 0, s * (V.v.id === 'school' ? 5 : 1.9), '#fff6c0', .25 + .12 * Math.sin(T * 3));
+  if (V.v.id === 'whale') { ctx.globalAlpha = .9; drawModel(ctx, s, w, 1, null, MODELS.humpback); }
+  else if (V.v.id === 'turtle') shinyDraw(ctx, { draw: drawTurtle }, s, w, { shiny: 'gold', phase: 0, growth: 1 });
+  else for (let i = 0; i < 12; i++) { ctx.save(); ctx.translate(Math.cos(i * 2.4) * s * 3.2 + Math.sin(T + i) * 4, Math.sin(i * 1.7) * s * 1.8); drawNeon(ctx, s, Math.sin(T * 8 + i) * .15, 1, null); ctx.restore(); }
+  ctx.restore(); ctx.globalAlpha = 1;
+  if (!V.tapped && Math.random() < .08) particles.push({ x: V.x + rand(-s, s), y: y + rand(-s * .5, s * .5), vy: -15, life: 1, icon: '✨' });
+}
+function visitorAt(p) {
+  if (!visitor || visitor.tapped) return false;
+  const V = visitor, s = V.v.size;
+  return Math.abs(p.x - V.x) < s * V.v.w + 20 && Math.abs(p.y - V.y) < s * V.v.h + 30;
+}
+function tapVisitor() {
+  const V = visitor; V.tapped = true; state.stats.visitors++; taskProg('visitor');
+  for (let i = 0; i < 8; i++) particles.push({ x: V.x + rand(-40, 40), y: V.y + rand(-20, 20), vy: -rand(20, 50), life: 1.4, icon: '💗' });
+  if (V.v.id === 'turtle') { grant(0, rewardStars() * 2, `🐢 ${V.v.name}送你星星！`); return; }
+  // 大鯨魚、小魚群：撒下一把寶物
+  const total = rewardCoins(V.v.id === 'whale' ? 180 : 100), n = 6;
+  for (let i = 0; i < n; i++) state.treasures.push({ x: clamp(V.x + rand(-80, 80), 30, W - 30), y: V.y + rand(-20, 20), type: 'diamond', mult: total / n / TREASURE.diamond.value / B.value, vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+  toast(`${V.v.id === 'whale' ? '🐋' : '🐟'} ${V.v.name}留下了一些寶物！`);
+}
+
+// ====== 晝夜變化：跟著真實時間，晚上變成月光的顏色 ======
+let nightAmt = 0;
+function updateNight() {
+  if (state.dayNight === false) { nightAmt = 0; return; }
+  const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
+  nightAmt = h >= 20 || h < 5 ? 1 : h >= 18 ? (h - 18) / 2 : h < 7 ? (7 - h) / 2 : 0;
+}
+function drawNight() {
+  if (nightAmt <= 0) return;
+  ctx.save(); ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = css(mixc([255, 255, 255], [95, 115, 190], nightAmt)); ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  // 月光：從水面照下來的淡淡光束
+  const g = ctx.createRadialGradient(W * .78, -40, 10, W * .78, -40, 420); g.addColorStop(0, `rgba(200,220,255,${.22 * nightAmt})`); g.addColorStop(1, 'rgba(200,220,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+// ====== 節日活動：依日期自動出現 ======
+const LNY = { 2026: '2-17', 2027: '2-6', 2028: '1-26', 2029: '2-13', 2030: '2-3', 2031: '1-23', 2032: '2-11' };
+const MOON = { 2026: '9-25', 2027: '9-15', 2028: '10-3', 2029: '9-22', 2030: '9-12', 2031: '10-1', 2032: '9-19' };
+const EVENTS = {
+  lny:  { id: 'lny',  name: '春節', treasure: 'redpacket', msg: '🧧 新年快樂！春節期間魚兒會掉出紅包喔！' },
+  mom:  { id: 'mom',  name: '母親節', treasure: 'bouquet', msg: '💐 母親節快樂！謝謝媽媽，這幾天魚兒會送上花束喔！' },
+  moon: { id: 'moon', name: '中秋節', treasure: 'mooncake', msg: '🥮 中秋節快樂！月亮出來了，魚兒會掉出月餅喔！' },
+  xmas: { id: 'xmas', name: '聖誕節', treasure: 'xmasgift', msg: '🎄 聖誕快樂！下雪囉，魚兒會送上聖誕禮物！' },
+};
+function currentEvent(d = new Date()) {
+  const y = d.getFullYear(), day0 = new Date(y, d.getMonth(), d.getDate());
+  const diff = s => { if (!s) return 1e9; const [m, dd] = s.split('-').map(Number); return Math.round((day0 - new Date(y, m - 1, dd)) / 864e5); };
+  const a = diff(LNY[y]); if (a >= -3 && a <= 14) return EVENTS.lny;
+  const may1 = new Date(y, 4, 1), sun2 = 1 + (7 - may1.getDay()) % 7 + 7, md = Math.round((day0 - new Date(y, 4, sun2)) / 864e5);
+  if (md >= -6 && md <= 0) return EVENTS.mom;
+  const b = diff(MOON[y]); if (b >= -5 && b <= 3) return EVENTS.moon;
+  if (d.getMonth() === 11 && d.getDate() >= 15) return EVENTS.xmas;
+  return null;
+}
+let EV = null;
+function updateEvent() {
+  EV = currentEvent();
+  if (EV && state.eventSeen !== EV.id + todayStr()) setTimeout(showEventMsg, 800);
+}
+// 節日問候：等其他視窗關掉再跳出來，避免蓋掉別的訊息
+function showEventMsg() {
+  if (!EV || state.eventSeen === EV.id + todayStr()) return;
+  if (!$('#ask').hidden || !$('#welcome').hidden || !$('#photoBox').hidden) return setTimeout(showEventMsg, 1500);
+  state.eventSeen = EV.id + todayStr(); ask(EV.msg, '好', null);
+}
+// 活動期間：魚掉寶時有 8% 機率換成節日寶物（價值是平常的 3 倍）
+function eventTreasure(sp) { return EV && Math.random() < .08 ? { type: EV.treasure, mult: avgTreasure(sp.pool) * sp.mult * 3 } : null; }
+function drawEventBack() {
+  if (!EV) return;
+  if (EV.id === 'moon') {
+    const x = W * .82, y = 120; glowDot(ctx, x, y, 150, '#fff2c0', .45);
+    ctx.fillStyle = '#fff4d0'; circle(ctx, x, y, 46); ctx.fill();
+    ctx.fillStyle = 'rgba(230,210,160,0.5)'; for (const [dx, dy, r] of [[-14, -8, 9], [12, 10, 7], [6, -18, 5], [-6, 16, 6]]) { circle(ctx, x + dx, y + dy, r); ctx.fill(); }
+  }
+}
+function drawEventFront() {
+  if (!EV) return;
+  if (EV.id === 'lny') {
+    for (let i = 0; i < 5; i++) {
+      const x = W * (.1 + i * .2), sw = Math.sin(T * 1.2 + i) * 4, y = 34 + (i % 2) * 18;
+      ctx.strokeStyle = 'rgba(120,60,20,0.8)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + sw, y - 14); ctx.stroke();
+      glowDot(ctx, x + sw, y, 30, '#ff6030', .5); ctx.fillStyle = '#e8302a'; ell(ctx, x + sw, y, 14, 17); ctx.fill();
+      ctx.fillStyle = '#ffcf40'; ctx.fillRect(x + sw - 8, y - 18, 16, 4); ctx.fillRect(x + sw - 8, y + 14, 16, 4);
+      ctx.fillStyle = '#ffd860'; ctx.font = 'bold 13px "Noto Sans TC",sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('福', x + sw, y + 1);
+    }
+  } else if (EV.id === 'xmas') {
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (let i = 0; i < 60; i++) { const x = ((i * 173.3 + Math.sin(T * .6 + i) * 30) % W + W) % W, y = (i * 61.7 + T * (14 + i % 5 * 4)) % (H + 10) - 5; circle(ctx, x, y, 1.5 + i % 3); ctx.fill(); }
+  } else if (EV.id === 'mom') {
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < 10; i++) { const x = (i * 131.7) % W + Math.sin(T + i) * 20, y = H - ((T * (18 + i % 4 * 5) + i * 70) % (H + 40)); ctx.globalAlpha = .55; emoji(ctx, i % 3 ? '💗' : '🌸', x, y, 20 + i % 3 * 6); }
+    ctx.globalAlpha = 1;
+  }
+}
+
 // ====== 主迴圈 ======
-let last = performance.now(), hudT = 0, saveT = 0, cloudT = 0, lastCoins = -1, lastFishN = -1, lastStars = -1;
+let last = performance.now(), hudT = 0, saveT = 0, cloudT = 0, secT = 0, lastCoins = -1, lastFishN = -1, lastStars = -1;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   update(dt); render();
@@ -3024,6 +3375,11 @@ function frame(now) {
     hudT = 0; refreshAfford(); if (selFishId) updateFishCard();
     if (menuOpen && tab === 'mine' && !panelPressed && (T | 0) % 2 === 0) renderTab();
   }
+  secT += dt;
+  if (secT > 1) {
+    secT = 0; checkAch(); updateNight();
+    if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
+  }
   if (saveT > 5) { saveT = 0; save(); }
   cloudT += dt; if (cloudT > 120) { cloudT = 0; Cloud.upload(); }
   requestAnimationFrame(frame);
@@ -3034,7 +3390,7 @@ function frame(now) {
 const OFFLINE_RATE = 0.3;
 function incomePerSec() {
   let v = 0;
-  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
+  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery * (f.shiny ? 3 : 1); }
   for (const id of state.starShown) { const sp = SSP[id]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
   return v * B.value * B.drop;
 }
@@ -3163,6 +3519,7 @@ resize(); window.addEventListener('resize', resize); window.addEventListener('or
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
 if (migrateNote) { ask(migrateNote, '好', null); migrateNote = ''; }
+updateNight(); if (state.daily.date !== todayStr()) newDay(); updateEvent(); updateGiftDot();
 // 之前登入過 Google 的話，打開遊戲就自動恢復登入並開始雲端備份
 if (Cloud.enabled()) Cloud.init().catch(() => { });
 // 一打開就申請存檔保護；有些瀏覽器要點過畫面才會同意，所以第一次點畫面時再申請一次
