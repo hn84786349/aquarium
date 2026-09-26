@@ -956,7 +956,7 @@ function newState() {
   return {
     coins: 100, capLv: 0, feederLv: 0, snailLv: 0, netLv: 0, nurseryLv: 0, pumpLv: 0, food: 'basic',
     bg: 'fresh', ownedBg: ['fresh'], scene: newScene(),
-    breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0, maxTier: 0, dayNight: true,
+    breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0, maxTier: 0,
     dex: { seen: {}, shiny: {}, claimed: [] }, ach: {}, stats: { born: 0, released: 0, visitors: 0 },
     daily: { date: '', gift: false, streak: 0, last: '', tasks: [] },
     stars: 0, starEarned: 0, starOwned: [], starShown: [],
@@ -2399,7 +2399,7 @@ function drawDynamicBg() {
   // 海中微粒（海雪），深色背景會發光
   for (let i = 0; i < 46; i++) {
     const x = ((i * 157.3 + T * (4 + i % 5) * (i % 2 ? 1 : -1)) % W + W) % W, y = (i * 83.7 + T * (6 + i % 4)) % (FLOOR - 20) + 10;
-    const glowS = th.snowGlow || nightAmt > .5, a = glowS ? .35 + .35 * Math.sin(T * 2 + i) : .28 + .12 * Math.sin(T + i);
+    const glowS = th.snowGlow, a = glowS ? .35 + .35 * Math.sin(T * 2 + i) : .28 + .12 * Math.sin(T + i);
     ctx.fillStyle = glowS ? `rgba(150,255,235,${a})` : `rgba(255,255,255,${a})`;
     circle(ctx, x, y, 1 + (i % 3) * .6); ctx.fill();
   }
@@ -2457,7 +2457,7 @@ function render() {
   }
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1;
   for (const b of bubbles) { ell(ctx, b.x, b.y, b.r, b.r); ctx.stroke(); }
-  drawNight(); drawEventFront();
+  drawEventFront();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life); emoji(ctx, p.icon, p.x, p.y, 22); }
   ctx.globalAlpha = 1;
@@ -2962,7 +2962,7 @@ function renderTab() {
   } else if (tab === 'settings') {
     const col = 'class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:8px"';
     h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
-    h += `<h4>📱 畫面</h4><div ${col}>${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="toggleNight">🌙 晝夜變化（晚上會變成月光色調）：<b>${state.dayNight === false ? '關' : '開'}</b></button></div>`;
+    if (!isAppMode()) h += `<h4>📱 畫面</h4><div ${col}><button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button></div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
     h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
@@ -3046,7 +3046,6 @@ const ACTIONS = {
   fullscreen() { toggleFullscreen(); },
   cloudLogin() { Cloud.login(); },
   claimGift() { claimGift(); },
-  toggleNight() { state.dayNight = state.dayNight === false; updateNight(); },
   cloudLogout() { Cloud.logout(); },
   cloudRestore() { Cloud.restore(); },
   async cloudUp() { if (await Cloud.upload(true)) toast('☁️ 已備份到雲端'); },
@@ -3283,23 +3282,6 @@ function tapVisitor() {
   toast(`${V.v.id === 'whale' ? '🐋' : '🐟'} ${V.v.name}留下了一些寶物！`);
 }
 
-// ====== 晝夜變化：跟著真實時間，晚上變成月光的顏色 ======
-let nightAmt = 0;
-function updateNight() {
-  if (state.dayNight === false) { nightAmt = 0; return; }
-  const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
-  nightAmt = h >= 20 || h < 5 ? 1 : h >= 18 ? (h - 18) / 2 : h < 7 ? (7 - h) / 2 : 0;
-}
-function drawNight() {
-  if (nightAmt <= 0) return;
-  ctx.save(); ctx.globalCompositeOperation = 'multiply';
-  ctx.fillStyle = css(mixc([255, 255, 255], [95, 115, 190], nightAmt)); ctx.fillRect(0, 0, W, H);
-  ctx.restore();
-  // 月光：從水面照下來的淡淡光束
-  const g = ctx.createRadialGradient(W * .78, -40, 10, W * .78, -40, 420); g.addColorStop(0, `rgba(200,220,255,${.22 * nightAmt})`); g.addColorStop(1, 'rgba(200,220,255,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-}
-
 // ====== 節日活動：依日期自動出現 ======
 const LNY = { 2026: '2-17', 2027: '2-6', 2028: '1-26', 2029: '2-13', 2030: '2-3', 2031: '1-23', 2032: '2-11' };
 const MOON = { 2026: '9-25', 2027: '9-15', 2028: '10-3', 2029: '9-22', 2030: '9-12', 2031: '10-1', 2032: '9-19' };
@@ -3378,7 +3360,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch(); updateNight();
+    secT = 0; checkAch();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }
@@ -3520,7 +3502,7 @@ resize(); window.addEventListener('resize', resize); window.addEventListener('or
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
 if (migrateNote) { ask(migrateNote, '好', null); migrateNote = ''; }
-updateNight(); if (state.daily.date !== todayStr()) newDay(); updateEvent(); updateGiftDot();
+if (state.daily.date !== todayStr()) newDay(); updateEvent(); updateGiftDot();
 // 之前登入過 Google 的話，打開遊戲就自動恢復登入並開始雲端備份
 if (Cloud.enabled()) Cloud.init().catch(() => { });
 // 一打開就申請存檔保護；有些瀏覽器要點過畫面才會同意，所以第一次點畫面時再申請一次
