@@ -53,6 +53,21 @@ canvas{display:block;touch-action:none;cursor:pointer}
 @keyframes slideIn{from{transform:translateX(40px);opacity:.3}to{transform:none;opacity:1}}
 .menuHead{display:flex;align-items:center;gap:8px;padding:8px 10px 8px 16px;border-bottom:1px solid var(--border)}
 .menuHead b{font-size:19px;flex:1}
+/* 上層分頁（商店／我的魚）放在標題列，下層是商店的子分頁 */
+#topTabs{flex:1;display:flex;gap:6px;border:0}
+#topTabs button{flex:none;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:17px;font-weight:700;padding:6px 14px}
+#topTabs button.on{background:var(--accent);color:#2a1d00;border-color:var(--accent)}
+#tabs[hidden]{display:none}
+/* 餵食按鈕按下去出現的飼料選單 */
+#foodPop{position:absolute;top:calc(max(8px,env(safe-area-inset-top)) + 54px);right:max(8px,env(safe-area-inset-right));z-index:7;width:min(360px,calc(100% - 16px));max-height:calc(100% - 70px);overflow-y:auto;
+  background:rgba(10,20,35,.96);border:1px solid var(--border);border-radius:14px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#foodPop[hidden]{display:none}
+#foodPop .fh{font-weight:700;font-size:17px;margin:2px 4px 8px}
+#foodPop button.food{display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin-bottom:6px;background:var(--panel2);border:2px solid transparent;padding:6px 10px}
+#foodPop button.food.on{border-color:var(--accent);background:#2a3f60}
+#foodPop button.food .fi{font-size:26px;width:34px;text-align:center}
+#foodPop button.food small{display:block;color:var(--muted);font-size:14px}
+#foodPop .hint{font-size:14px;margin:6px 4px 2px}
 nav{display:flex;border-bottom:1px solid var(--border)}
 nav button{flex:1;border-radius:0;background:transparent;padding:10px 2px;font-size:16px;white-space:nowrap;letter-spacing:-.3px}
 nav button.on{background:var(--panel2);color:var(--accent);box-shadow:inset 0 -3px 0 var(--accent)}
@@ -62,6 +77,9 @@ nav button.on{background:var(--panel2);color:var(--accent);box-shadow:inset 0 -3
   .menuHead{padding:4px 8px 4px 12px}
   .menuHead b{font-size:16px}
   .menuHead button{min-height:36px;padding:4px 10px;font-size:15px}
+  #topTabs button{padding:4px 12px;font-size:16px}
+  #foodPop{top:calc(max(8px,env(safe-area-inset-top)) + 46px);max-height:calc(100% - 56px)}
+  #foodPop button.food{min-height:40px;padding:3px 10px}
   nav button{min-height:38px;padding:4px 1px}
   #tab{padding:8px 10px}
 }
@@ -145,24 +163,22 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
     <span class="pill" id="fishPill">🐟 0/0</span>
   </div>
   <div id="ctrls">
-    <button id="modeFeed" class="on">🍤 餵食</button>
-    <button id="modeLook">🔍 查看</button>
+    <button id="modeFeed" class="on" aria-haspopup="true" aria-expanded="false">🍤 餵食</button>
     <button id="musicBtn" title="背景音樂" aria-label="背景音樂">🎵</button>
     <button id="menuBtn" aria-haspopup="dialog">☰ 選單</button>
   </div>
   <div id="fishCard"></div>
+  <div id="foodPop" hidden role="dialog" aria-label="選擇飼料"></div>
   <p id="rotateHint">📱 把手機橫過來，水族箱會變大</p>
 </div>
 <div id="menuBack" hidden></div>
 <aside id="menu" hidden role="dialog" aria-label="選單">
-  <div class="menuHead"><b>🐠 夢幻水族箱</b><button id="menuClose" class="ghost">✕ 關閉</button></div>
+  <div class="menuHead"><nav id="topTabs"><button data-top="store" class="on">🛒 商店</button><button data-top="mine">🐠 我的魚</button><button data-top="settings">⚙️ 設定</button></nav><button id="menuClose" class="ghost">✕ 關閉</button></div>
   <nav id="tabs">
-    <button data-tab="shop" class="on">魚店</button>
-    <button data-tab="food">飼料</button>
-    <button data-tab="decor">造景</button>
+    <button data-tab="shop" class="on">魚</button>
+    <button data-tab="star">⭐夢幻魚</button>
+    <button data-tab="decor">設備・造景</button>
     <button data-tab="bg">背景</button>
-    <button data-tab="mine">我的魚</button>
-    <button data-tab="star">⭐星願</button>
   </nav>
   <div id="tab"></div>
 </aside>
@@ -835,7 +851,7 @@ function drawScene(layer) {
     }
   }
   ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(SCENE_CV[layer], 0, 0); ctx.restore();
-  const edit = mode === 'look' || (menuOpen && tab === 'decor');
+  const edit = menuOpen && tab === 'decor';
   for (const p of SCENE) {
     if (p.layer !== layer) continue;
     const st = state.scene[p.id], { x, y } = scenePos(p);
@@ -892,7 +908,7 @@ function newState() {
   };
 }
 let pellets = [], particles = [], texts = [], bubbles = [], starFish = [], releasing = [], coinFx = [];
-let mode = 'feed', tab = 'shop', selFishId = null, B = {};
+let tab = 'shop', storeTab = 'shop', selFishId = null, B = {};
 let snail = { x: 500, dir: 1 }, feederT = 0, T = 0;
 const capacity = () => CAP_BASE + CAP_STEP * state.capLv;
 // 魚店顯示到哪一種：曾經擁有過的最高級魚往後 3 種
@@ -2361,32 +2377,40 @@ function treasureAt(p, rad = 30) {
 let dragging = false;
 canvas.addEventListener('pointerdown', e => {
   dragging = true; const p = worldPos(e);
+  // 飼料選單打開時，點水族箱只是把選單關掉
+  if (!$('#foodPop').hidden) { toggleFood(false); dragging = false; return; }
   const t = treasureAt(p); if (t) { collectTreasure(t); return; }
-  if (mode === 'feed') {
-    const fd = FD[state.food];
-    if (state.coins < fd.cost) { floatText(p.x, p.y, '金幣不足', '#ff8080'); return; }
-    state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR))));
-    return;
-  }
-  // 查看模式：先找魚，再找造景
+  // 點到魚的身上：顯示這隻魚的狀態（判定範圍只算魚身，才不會一直點不到水裡投飼料）
   let hit = null, hd = 1e9;
-  for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.4 + 8, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < s && d < hd) { hd = d; hit = f; } }
+  for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.05 + 6, d = Math.hypot(f.x - p.x, (f.y - p.y) * 1.4); if (d < s && d < hd) { hd = d; hit = f; } }
   if (hit) { selFishId = hit.id; updateFishCard(); return; }
   const pc = !treasureAt(p, 60) && sceneAt(p);
   if (pc) { openScene(pc.id); return; }
-  selFishId = null; updateFishCard();
+  // 其他地方：投放飼料
+  if (selFishId) { selFishId = null; updateFishCard(); }
+  const fd = FD[state.food];
+  if (state.coins < fd.cost) { floatText(p.x, p.y, '金幣不足', '#ff8080'); return; }
+  state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR))));
 });
 canvas.addEventListener('pointermove', e => { if (!dragging && e.pointerType !== 'mouse') return; const t = treasureAt(worldPos(e), 24); if (t && (dragging || e.buttons === 0)) collectTreasure(t); });
 window.addEventListener('pointerup', () => dragging = false);
 
-function setMode(m) {
-  mode = m; $('#modeFeed').classList.toggle('on', m === 'feed'); $('#modeLook').classList.toggle('on', m === 'look');
-  if (m === 'feed') { selFishId = null; updateFishCard(); }
-  updateModeLabel();
+// 右上角的「餵食」按鈕：顯示目前的飼料，按下去可以換飼料
+function updateModeLabel() { const fd = FD[state.food]; $('#modeFeed').innerHTML = `🍤 餵食 <span class="lbl">${fd.name}</span> 💰${fd.cost} ▾`; if (!$('#foodPop').hidden) renderFood(); }
+function renderFood() {
+  $('#foodPop').innerHTML = `<div class="fh">🍤 選擇飼料</div>${FOODS.map(fd => `<button class="food ${state.food === fd.id ? 'on' : ''}" data-food="${fd.id}"><span class="fi">${fd.icon}</span>
+    <span><b>${fd.name}</b>　💰${fd.cost}／顆<small>飽食度 +${fd.sat}・幼魚成長 ×${fd.grow}</small></span></button>`).join('')}
+    <p class="hint">在水族箱點一下就會投放一顆飼料；點魚可以看牠的狀態。<br>💡 飽食度 ≥ 40 的同種成魚兩隻就會繁殖；飽食度歸零的魚不會長大、也不會產寶物。</p>`;
 }
-function updateModeLabel() { const fd = FD[state.food]; $('#modeFeed').innerHTML = `🍤 餵食 <span class="lbl">${fd.name}</span> 💰${fd.cost}`; }
-$('#modeFeed').onclick = () => setMode('feed');
-$('#modeLook').onclick = () => setMode('look');
+function toggleFood(show = $('#foodPop').hidden) {
+  if (show) { renderFood(); if (menuOpen) closeMenu(); }
+  $('#foodPop').hidden = !show; $('#modeFeed').setAttribute('aria-expanded', show);
+}
+$('#modeFeed').onclick = () => toggleFood();
+$('#foodPop').addEventListener('click', e => {
+  const b = e.target.closest('[data-food]'); if (!b) return;
+  state.food = b.dataset.food; updateModeLabel(); toggleFood(false); toast(`改用${FD[state.food].name}`); save();
+});
 // 遊戲內的確認視窗（網頁版不支援瀏覽器的 confirm）
 function ask(msg, yes = '確定', no = '取消') {
   return new Promise(res => {
@@ -2430,7 +2454,7 @@ const Cloud = (() => {
   // 只在正式網站（GitHub Pages）啟用；Claude 預覽頁不能連外部服務
   const enabled = () => !!FIREBASE_CONFIG && (/github\.io$|^localhost$|^127\./.test(location.hostname) || window.CLOUD_TEST);
   const loadScript = src => new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('script')); document.head.appendChild(s); });
-  const refresh = () => { if (menuOpen && tab === 'mine' && !panelPressed) renderTab(); };
+  const refresh = () => { if (menuOpen && tab === 'settings' && !panelPressed) renderTab(); };
   const docRef = () => db.collection('saves').doc(user.uid);
   function init() {
     if (ready) return ready;
@@ -2695,8 +2719,16 @@ $('#menuClose').onclick = closeMenu;
 // 觸控點擊後瀏覽器會補送一次 click，剛開啟時先忽略，避免選單一開就被關掉
 $('#menuBack').onclick = () => { if (performance.now() - menuOpenedAt > 450) closeMenu(); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
-function setTab(t) { tab = t; document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t)); renderTab(); }
+// 上層分頁：商店（魚、夢幻魚、設備・造景、背景）／我的魚
+function setTab(t) {
+  const top = t === 'mine' || t === 'settings' ? t : 'store';
+  tab = t; if (top === 'store') storeTab = t;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('#topTabs button').forEach(b => b.classList.toggle('on', b.dataset.top === top));
+  $('#tabs').hidden = top !== 'store'; tabEl.scrollTop = 0; renderTab();
+}
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
+$('#topTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.top === 'store' ? storeTab : b.dataset.top); });
 
 function costBtn(act, arg, cost, label, extra = '', star = false) {
   return `<button data-act="${act}" data-arg="${arg}" data-cost="${cost}" ${star ? 'data-star="1" class="star"' : ''} ${extra}>${label} ${curIcon(star)}${fmt(cost)}</button>`;
@@ -2713,8 +2745,8 @@ function renderTab() {
     const full = state.fish.length >= capacity();
     // 目前魚的數量／上限，快滿變黃、滿了變紅
     const n = state.fish.length, cap = capacity(), capCol = full ? 'var(--bad)' : n >= cap * .8 ? 'var(--accent)' : 'var(--good)';
-    h += `<h3>🐟 魚店</h3><div class="capBox sticky"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
-      ${full ? '<small style="color:var(--bad)">已滿，可到最下面「擴充水族箱」或賣掉、放生一些魚</small>' : n >= cap * .8 ? '<small style="color:var(--accent)">快滿了</small>' : ''}</div>
+    h += `<div class="capBox sticky"><div class="row"><span>🐟 水族箱：<b style="color:${capCol}">${n}</b> / ${cap} 隻</span>
+      ${full ? '<small style="color:var(--bad)">已滿，可到「設備・造景」擴充水族箱，或賣掉、放生一些魚</small>' : n >= cap * .8 ? '<small style="color:var(--accent)">快滿了</small>' : ''}</div>
       <div class="bar"><i style="width:${Math.min(100, n / cap * 100)}%;background:${capCol}"></i></div></div>`;
     // 只顯示到「買過最高級的魚再往後 3 種」，更後面的先保密，買到了才會出現
     const lim = shopLimit(), hidden = SPECIES.length - 1 - lim;
@@ -2726,30 +2758,21 @@ function renderTab() {
         ${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}</div>`;
     }
     if (hidden > 0) h += `<div class="card"><div class="ico">🔒</div><div class="info"><b>還有 ${hidden} 種更稀有的魚</b><small>買到更高級的魚，就會出現新的魚種（越後面越華麗夢幻）</small></div></div>`;
-    h += `<h4>🔧 設備升級</h4>`;
+  } else if (tab === 'decor') {
+    const r = B.raw;
+    h += `<h3>🔧 設備</h3>`;
     h += `<div class="card"><div class="ico">🫙</div><div class="info"><b>擴充水族箱</b><small>容量 ${capacity()} 隻${state.capLv < CAP_MAX_LV ? ` → ${capacity() + CAP_STEP} 隻` : '（已達上限）'}</small></div>
       ${state.capLv < CAP_MAX_LV ? costBtn('buyCap', '', capCost(state.capLv), '擴充') : '<button disabled>MAX</button>'}</div>`;
     h += `<div class="card"><div class="ico">🤖</div><div class="info"><b>自動餵食器 Lv.${state.feederLv}</b><small>${state.feederLv ? `每 ${feederInterval(state.feederLv)} 秒自動投放目前選擇的飼料` : '有魚肚子餓時自動投放飼料（會扣飼料錢）'}</small></div>
       ${state.feederLv < FEEDER_MAX ? costBtn('buyFeeder', '', feederCost(state.feederLv), state.feederLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
     h += `<div class="card"><div class="ico">🐌</div><div class="info"><b>撿寶蝸牛 Lv.${state.snailLv}</b><small>${state.snailLv ? `自動去撿沉在沙上的寶物（速度 ${snailSpeed(state.snailLv)}）` : '幫你自動撿沙地上的寶物'}</small></div>
       ${state.snailLv < SNAIL_MAX ? costBtn('buySnail', '', snailCost(state.snailLv), state.snailLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
-  } else if (tab === 'food') {
-    h += `<h3>🍤 飼料</h3><p class="hint">選好飼料後，在水族箱點一下就會投放一顆。價值越高，補充的飽食度越多，吃了之後幼魚長得越快。</p>`;
-    for (const fd of FOODS) {
-      const on = state.food === fd.id;
-      h += `<div class="card ${on ? 'sel' : ''}"><div class="ico">${fd.icon}</div><div class="info"><b>${fd.name}</b>
-        <small>每顆 💰${fd.cost}　飽食度 +${fd.sat}</small><small>成長速度 ×${fd.grow}</small></div>
-        ${on ? '<button class="on" disabled>使用中</button>' : `<button data-act="selFood" data-arg="${fd.id}">選擇</button>`}</div>`;
-    }
-    h += `<div class="bonus">💡 小技巧：魚的飽食度 ≥ 40 的成魚，兩隻同種就會開始繁殖；飽食度歸零的魚不會長大、也不會產寶物。</div>`;
-  } else if (tab === 'decor') {
-    const r = B.raw;
-    h += `<h3>🪸 造景</h3><div class="bonus">目前加成：寶物價值 <b>+${Math.round(r.value * 100)}%</b>　產寶速度 <b>+${Math.round(r.drop * 100)}%</b><br>
+    h += `<h3 style="margin-top:18px">🪸 功能造景</h3><div class="bonus">目前加成：寶物價值 <b>+${Math.round(r.value * 100)}%</b>　產寶速度 <b>+${Math.round(r.drop * 100)}%</b><br>
       成長速度 <b>+${Math.round(r.growth * 100)}%</b>　繁殖速度 <b>+${Math.round(r.breed * 100)}%</b>　飽食度消耗 <b>-${Math.round((1 - B.hunger) * 100)}%</b>　離線收益 <b>+${Math.round(r.offline * 100)}%</b></div>
       <p class="hint">每個造景都有固定的位置，會跟背景融為一體。升級會讓功能變強；外觀可以選自己喜歡的等級，功能一樣算最高等級。</p>`;
     for (const p of SCENE) h += sceneCard(p);
   } else if (tab === 'bg') {
-    h += `<h3>🖼️ 背景</h3><p class="hint">更漂亮的背景還會提高寶物價值！</p>`;
+    h += `<p class="hint">更漂亮的背景還會提高寶物價值！</p>`;
     for (const bg of BGS) {
       const own = state.ownedBg.includes(bg.id), on = state.bg === bg.id;
       h += `<div class="card ${on ? 'sel' : ''}"><div class="swatch" style="background:linear-gradient(${bg.top},${bg.bot} 75%,${bg.sand[0]} 76%)"></div>
@@ -2777,13 +2800,18 @@ function renderTab() {
       }
       h += `</div>`;
     }
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">點水族箱投放飼料；點或滑過寶物就能撿起來換金幣。<br>切到「🔍 查看」模式可以點魚看狀態，點造景可以升級或換外觀。</div>
-      ${Cloud.note()}<h4>⚙️ 其他</h4>${persistNote()}<div class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:10px">${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
+  } else if (tab === 'settings') {
+    const col = 'class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:8px"';
+    h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
+    if (!isAppMode()) h += `<h4>📱 畫面</h4><div ${col}><button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button></div>`;
+    h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料。<br>・點或滑過寶物就能撿起來換金幣。<br>・點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。</div>`;
+    h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
-    h += `<h3>⭐ 星願商店</h3><div class="bonus">把魚「放生」回大海就能獲得星星，越高階的魚星星越多（未成年的魚星星較少）。<br>
+    h += `<div class="bonus">把魚「放生」回大海就能獲得星星，越高階的魚星星越多（未成年的魚星星較少）。<br>
       ${SPECIES.filter(sp => sp.tier <= shopLimit()).map(sp => `${sp.name} ⭐${sp.stars}`).join('・')}<br>累計獲得 ⭐${fmt(state.starEarned)}</div>`;
-    h += `<h4>🌟 夢幻魚（展示中 ${state.starShown.length}/${MAX_SHOWN}）</h4><p class="hint">每種只能兌換一隻，不用餵食、不佔水族箱空間，產出的寶物更值錢。水族箱最多同時放 ${MAX_SHOWN} 隻，可以自由選擇要放哪幾隻。</p>`;
+    h += `<h4>🌟 夢幻魚（展示中 ${state.starShown.length}/${MAX_SHOWN}）　目前 ⭐${fmt(state.stars)}</h4><p class="hint">每種只能兌換一隻，不用餵食、不佔水族箱空間，產出的寶物更值錢。水族箱最多同時放 ${MAX_SHOWN} 隻，可以自由選擇要放哪幾隻。</p>`;
     for (const sp of STARFISH) {
       const own = state.starOwned.includes(sp.id), shown = state.starShown.includes(sp.id);
       h += `<div class="card ${shown ? 'sel' : ''}"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
@@ -2792,14 +2820,7 @@ function renderTab() {
           : shown ? `<button class="on" data-act="toggleShow" data-arg="${sp.id}">收回</button>`
           : `<button data-act="toggleShow" data-arg="${sp.id}" ${state.starShown.length >= MAX_SHOWN ? 'disabled title="最多放 3 隻"' : ''}>放入</button>`}</div>`;
     }
-    h += `<h4>✨ 限定背景</h4>`;
-    for (const bg of BGS.filter(b => b.starPrice)) {
-      const own = state.ownedBg.includes(bg.id), on = state.bg === bg.id;
-      h += `<div class="card ${on ? 'sel' : ''}"><div class="swatch" style="background:radial-gradient(circle at 30% 30%,#8a4cff55,transparent 60%),linear-gradient(${bg.top},${bg.bot} 75%,${bg.sand[0]} 76%)"></div>
-        <div class="info"><b>${bg.name}</b><small>寶物價值 +${Math.round(bg.bonus * 100)}%・會有流星劃過</small></div>
-        ${on ? '<button class="on" disabled>使用中</button>' : own ? `<button data-act="useBg" data-arg="${bg.id}">使用</button>` : costBtn('buyBg', bg.id, bg.starPrice, '兌換', '', true)}</div>`;
-    }
-    h += `<h4>💠 限定造景</h4>` + sceneCard(SCN.crystal);
+    h += `<p class="hint">✨ 用星星兌換的限定背景「星河幻境」在「背景」頁，限定造景「星之水晶」在「設備・造景」頁。</p>`;
   }
   tabEl.innerHTML = h;
   refreshAfford();
@@ -2843,7 +2864,6 @@ const ACTIONS = {
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
   buyFeeder() { if (state.feederLv < FEEDER_MAX && pay(feederCost(state.feederLv))) { state.feederLv++; toast(`自動餵食器 Lv.${state.feederLv}`); } },
   buySnail() { if (state.snailLv < SNAIL_MAX && pay(snailCost(state.snailLv))) { state.snailLv++; toast(`撿寶蝸牛 Lv.${state.snailLv}`); } },
-  selFood(id) { state.food = id; updateModeLabel(); toast(`改用${FD[id].name}`); },
   buyBg(id) { const bg = BG[id]; if (pay(bg.starPrice || bg.price, !!bg.starPrice)) { state.ownedBg.push(id); ACTIONS.useBg(id); } },
   useBg(id) { state.bg = id; buildBg(); calcBonus(); toast(`背景換成「${BG[id].name}」`); },
   upScene(id) {
@@ -2854,7 +2874,7 @@ const ACTIONS = {
     const { x, y } = scenePos(p); for (let i = 0; i < 8; i++) particles.push({ x: x + rand(-30, 30), y: y - rand(10, 60), vy: -rand(15, 40), life: 1.4, icon: '✨' });
   },
   lookScene(arg) { const [id, n] = arg.split(':'), st = state.scene[id]; if (st && +n <= st.lv) { st.look = +n; selPiece = id; sceneT = -1; } },
-  viewFish(id) { setMode('look'); selFishId = +id; closeMenu(); updateFishCard(); },
+  viewFish(id) { selFishId = +id; closeMenu(); updateFishCard(); },
   sellFish(id) { sellFish(+id); },
   releaseFish(id) { releaseFish(+id); },
   reset() { resetGame(); },
