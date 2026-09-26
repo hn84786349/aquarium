@@ -322,11 +322,18 @@ const STARFISH = [
   { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 100000, desc: '張開大翅膀在水中飛翔', draw: drawManta },
   { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 300000, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
   { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 800000, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
+  // 更高級的夢幻生物：星星需求更高，外觀更華麗
+  { id: 'pegasus',      name: '天馬海馬', cost: 1400, size: 30, speed: 40, dropEvery: 16, valueMult: 1.8,  income: 1800000,   desc: '長著羽毛翅膀的純白海馬', draw: drawPegasus },
+  { id: 'lotus',        name: '蓮花水母', cost: 2000, size: 38, speed: 26, dropEvery: 16, valueMult: 1.85, income: 4000000,   desc: '像一朵發光的蓮花在水中綻放', draw: drawLotusJelly },
+  { id: 'starmanta',    name: '星空魟',   cost: 2800, size: 40, speed: 44, dropEvery: 17, valueMult: 1.9,  income: 9000000,   desc: '翅膀上閃爍著整片星空', draw: drawStarManta },
+  { id: 'icedragon',    name: '冰晶龍',   cost: 4000, size: 28, speed: 58, dropEvery: 17, valueMult: 2.0,  income: 20000000,  desc: '冰晶鱗片、拖著極光鬃毛的神龍', draw: drawIceDragon },
+  { id: 'rainbowwhale', name: '彩虹鯨',   cost: 5500, size: 42, speed: 36, dropEvery: 18, valueMult: 2.1,  income: 45000000,  desc: '游過的地方都會留下彩虹', draw: drawRainbowWhale },
+  { id: 'dragonking',   name: '海神龍王', cost: 8000, size: 30, speed: 55, dropEvery: 18, valueMult: 2.25, income: 100000000, desc: '守護整片海洋、捧著龍珠的王者', draw: drawDragonKing },
 ];
 STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); s.mult = s.income * s.dropEvery / avgTreasure(s.pool); s.star = true; });
 const SSP = Object.fromEntries(STARFISH.map(s => [s.id, s]));
 const getSp = id => SP[id] || SSP[id];
-const MAX_SHOWN = 3;
+const MAX_SHOWN = 5;
 
 const FOODS = [
   { id: 'basic',   name: '普通飼料',   icon: '🟤', cost: 1,  sat: 15, grow: 1,   color: '#9a6a3a', r: 4.5 },
@@ -1701,6 +1708,19 @@ const MODELS = {
     fins: [{ x0: -.2, x1: -.4, h: .2, back: .5, cols: ['#1a3a8a', '#5ae8c8'] }, { kind: 'pec', x: .35, y: .65, len: .8, cols: ['#3a6ad0', '#8af0e0', '#c8a8ff'], alpha: .92 }],
     extra: (c, s, w, f, L, Hh) => GALAXY_DOTS.forEach(([x, y, r], i) => { c.fillStyle = `rgba(230,255,255,${.4 + .6 * Math.sin(T * 2.5 + i)})`; circle(c, x * L * .95, y * Hh * .9 - Hh * .15, r * Hh * .8 + .6); c.fill(); }),
   },
+  rainbowwhale: {
+    L: 1.35, H: .4, seed: 211, shape: { nose: .85, hump: .35, belly: 1.0, tail: .15 }, top: '#f8f4ff', mid: '#ffffff', belly: '#ffffff', eye: [.64, 0, .05, '#302050'], nx: 10,
+    glow: () => `hsl(${(T * 50) % 360},90%,75%)`,
+    paint: (c, L, Hh) => { hGrad(c, L, Hh, ['#ff6aa8', '#ffb040', '#ffe850', '#50e090', '#50b0ff', '#a070ff'], .85); polyFill(c, [[L * 1.1, Hh * .45], [0, Hh * .6], [-L * 1.1, Hh * .5], [-L * 1.1, Hh * 1.3], [L * 1.1, Hh * 1.3]], 'rgba(255,255,255,0.55)'); },
+    under: (c, s, w, f, L, Hh) => {
+      const h = (T * 50) % 360; c.save(); c.translate(-L + 2, 0); c.rotate(w * .5);
+      for (const k of [-1, 0, 1]) ribbon(c, [0, 1, 2, 3, 4, 5].map(j => [-s * .36 * j, k * s * (.12 + j * .07) + Math.sin(T * 2 + j * .9 + k) * s * .1 * j / 5 + w * s * j * .25]), s * .08, hsl((h + k * 60 + 360) % 360, .9, .72), .8);
+      c.restore();
+    },
+    tail: { type: 'fluke', len: .6, spread: .5, cols: ['#ffb0d8', '#b0d8ff', '#d0b0ff'] },
+    fins: [{ kind: 'pec', x: .35, y: .65, len: .7, cols: ['#ffd0f0', '#c0e0ff', '#fff0b0'], alpha: .92 }],
+    extra: (c, s, w, f, L, Hh) => { blush(c, L * .72, Hh * .3, s * .06); sparkles(c, s, f, '#ffffff', 6); },
+  },
   // ---- 夢幻魚 ----
   phoenix: {
     L: .85, H: .4, seed: 71, top: '#e03a18', mid: '#ff9a2a', belly: '#fff1a0', eye: [.72, -.15, .065, '#2a0800'], glow: '#ff7a1a',
@@ -1815,35 +1835,41 @@ function drawLeafy(c, s, w, e, f) {
   lpEye(c, s * .58, -s * .06, s * .055 * e, '#1a1a08');
 }
 // 夜光水母：會一縮一放的多邊形傘蓋、飄動的口腕與觸手
-function drawJelly(c, s, w, e, f) {
+// 水母（P 可以換顏色做出不同的水母）
+const JELLY0 = { line: 'rgba(255,190,240,0.55)', rib: ['#ff9ad8', '#c88cff'], glow: '#ff8ae0', bell: ['#b07ae8', '#c68cf0', '#e0a0f4', '#f4b8f0', '#ffc8e8', '#f4b8f0', '#e0a0f4', '#c68cf0'], rim: 'rgba(255,210,245,0.75)' };
+function drawJelly(c, s, w, e, f, P = JELLY0) {
   const p = 1 + Math.sin(T * 2.4 + (f ? f.phase : 0)) * .08, ph = f ? f.phase : 0;
   c.save();
-  c.strokeStyle = 'rgba(255,190,240,0.55)'; c.lineWidth = Math.max(1, s * .03); c.lineCap = 'round';
+  c.strokeStyle = P.line; c.lineWidth = Math.max(1, s * .03); c.lineCap = 'round';
   for (let k = -3; k <= 3; k++) { c.beginPath(); c.moveTo(k * s * .16, s * .15); for (let j = 1; j <= 5; j++) c.lineTo(k * s * .16 + Math.sin(T * 2 + j + k + ph) * s * .08, s * .15 + j * s * .22); c.stroke(); }
-  for (const k of [-1, 0, 1]) ribbon(c, [0, 1, 2, 3, 4].map(j => [k * s * .1 + Math.sin(T * 1.5 + j * .8 + k + ph) * s * .1, s * .1 + j * s * .2]), s * .09, k ? '#c88cff' : '#ff9ad8', .85);
-  c.save(); c.shadowColor = '#ff8ae0'; c.shadowBlur = 18;
-  const P = []; for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; P.push([Math.cos(a) * s * .55 * p, Math.sin(a) * s * .5 / p]); }
-  const cols = ['#b07ae8', '#c68cf0', '#e0a0f4', '#f4b8f0', '#ffc8e8', '#f4b8f0', '#e0a0f4', '#c68cf0'];
-  for (let i = 0; i < 8; i++) polyFill(c, [[0, s * .05], P[i], P[i + 1]], css(hex(cols[i]), .82));
+  for (const k of [-1, 0, 1]) ribbon(c, [0, 1, 2, 3, 4].map(j => [k * s * .1 + Math.sin(T * 1.5 + j * .8 + k + ph) * s * .1, s * .1 + j * s * .2]), s * .09, k ? P.rib[1] : P.rib[0], .85);
+  if (P.petals) for (let i = 0; i < 7; i++) { const a = Math.PI * (1.05 + .9 * i / 6); c.save(); c.rotate(a + Math.PI / 2); polyFill(c, [[0, -s * .1], [-s * .12, -s * .5 * p], [0, -s * .72 * p], [s * .12, -s * .5 * p]], css(hex(P.petals[i % P.petals.length]), .8)); c.restore(); }
+  c.save(); c.shadowColor = P.glow; c.shadowBlur = 18;
+  const Q = []; for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; Q.push([Math.cos(a) * s * .55 * p, Math.sin(a) * s * .5 / p]); }
+  for (let i = 0; i < 8; i++) polyFill(c, [[0, s * .05], Q[i], Q[i + 1]], css(hex(P.bell[i]), .82));
   c.restore();
-  polyFill(c, [[-s * .55 * p, 0], [s * .55 * p, 0], [s * .4 * p, s * .12], [-s * .4 * p, s * .12]], 'rgba(255,210,245,0.75)');
+  polyFill(c, [[-s * .55 * p, 0], [s * .55 * p, 0], [s * .4 * p, s * .12], [-s * .4 * p, s * .12]], P.rim);
   for (let i = 0; i < 4; i++) blob(c, 1, 1, (i - 1.5) * s * .2, -s * .18, s * .06, s * .06, 'rgba(255,255,255,0.45)', 5);
+  if (P.core) { const g = c.createRadialGradient(0, -s * .12, 0, 0, -s * .12, s * .28); g.addColorStop(0, P.core); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; circle(c, 0, -s * .12, s * .28); c.fill(); }
   c.restore();
 }
 // 鬼蝠魟：從上方看的大翅膀，會上下拍動
-function drawManta(c, s, w, e, f) {
-  const fl = Math.sin(T * 2 + (f ? f.phase : 0)) * s * .22;
-  c.strokeStyle = '#34446a'; c.lineWidth = Math.max(1, s * .045); c.lineCap = 'round';
+const MANTA0 = { tail: '#34446a', c: ['#6a7eaa', '#4a5c86', '#5a6d98', '#4a5c86', '#3e4e76', '#34446a', '#56699a', '#3a4a72'], belly: ['rgba(240,244,252,0.9)', 'rgba(225,232,248,0.75)'], eye: '#0a0e18' };
+function drawManta(c, s, w, e, f, P = MANTA0) {
+  const fl = Math.sin(T * 2 + (f ? f.phase : 0)) * s * .22, C = P.c;
+  c.strokeStyle = P.tail; c.lineWidth = Math.max(1, s * .045); c.lineCap = 'round';
   c.beginPath(); c.moveTo(-s * .5, 0); c.lineTo(-s * 1.1, w * s * .5); c.lineTo(-s * 1.7, w * s); c.stroke();
   const nose = [s * .6, 0], back = [-s * .55, 0], fl1 = [s * .2, -s * .45], fr1 = [s * .2, s * .45], lt = [-s * .3, -s * 1.25 + fl], rt = [-s * .3, s * 1.25 - fl], lr = [-s * .5, -s * .32], rr = [-s * .5, s * .32];
-  polyFill(c, [nose, fl1, [0, 0]], '#6a7eaa'); polyFill(c, [nose, fr1, [0, 0]], '#4a5c86');
-  polyFill(c, [fl1, lt, [-s * .05, -s * .2]], '#5a6d98'); polyFill(c, [[-s * .05, -s * .2], lt, lr], '#4a5c86');
-  polyFill(c, [fr1, rt, [-s * .05, s * .2]], '#3e4e76'); polyFill(c, [[-s * .05, s * .2], rt, rr], '#34446a');
-  polyFill(c, [[0, 0], [-s * .05, -s * .2], lr, back], '#56699a'); polyFill(c, [[0, 0], [-s * .05, s * .2], rr, back], '#3a4a72');
-  polyFill(c, [[s * .12, -s * .38], [-s * .2, -s * .78 + fl * .5], [-s * .15, -s * .32]], 'rgba(240,244,252,0.9)');
-  polyFill(c, [[s * .12, s * .38], [-s * .2, s * .78 - fl * .5], [-s * .15, s * .32]], 'rgba(225,232,248,0.75)');
-  for (const d of [-1, 1]) polyFill(c, [[s * .55, d * s * .08], [s * .85, d * s * .16], [s * .8, d * s * .28], [s * .5, d * s * .22]], '#34446a');
-  lpEye(c, s * .45, -s * .22, s * .05 * e, '#0a0e18');
+  if (P.glow) { c.save(); c.shadowColor = P.glow; c.shadowBlur = 16; polyFill(c, [nose, fl1, lt, lr, back, rr, rt, fr1], P.c[1]); c.restore(); }
+  polyFill(c, [nose, fl1, [0, 0]], C[0]); polyFill(c, [nose, fr1, [0, 0]], C[1]);
+  polyFill(c, [fl1, lt, [-s * .05, -s * .2]], C[2]); polyFill(c, [[-s * .05, -s * .2], lt, lr], C[3]);
+  polyFill(c, [fr1, rt, [-s * .05, s * .2]], C[4]); polyFill(c, [[-s * .05, s * .2], rt, rr], C[5]);
+  polyFill(c, [[0, 0], [-s * .05, -s * .2], lr, back], C[6]); polyFill(c, [[0, 0], [-s * .05, s * .2], rr, back], C[7]);
+  polyFill(c, [[s * .12, -s * .38], [-s * .2, -s * .78 + fl * .5], [-s * .15, -s * .32]], P.belly[0]);
+  polyFill(c, [[s * .12, s * .38], [-s * .2, s * .78 - fl * .5], [-s * .15, s * .32]], P.belly[1]);
+  if (P.stars) GALAXY_DOTS.forEach(([x, y, r], i) => { c.fillStyle = `rgba(255,255,255,${.4 + .6 * Math.sin(T * 3 + i)})`; circle(c, -s * .15 + x * s * .5, y * s * 1.4 * (i % 2 ? 1 : -1) * .8, r * s * .5 + .6); c.fill(); });
+  for (const d of [-1, 1]) polyFill(c, [[s * .55, d * s * .08], [s * .85, d * s * .16], [s * .8, d * s * .28], [s * .5, d * s * .22]], P.tail);
+  lpEye(c, s * .45, -s * .22, s * .05 * e, P.eye);
 }
 // 撿寶蝸牛：用程式畫（不用表情符號，各家手機的蝸牛圖案朝向不同，會變成倒退走）
 function drawSnail(c, x, y, s, dir, moving) {
@@ -1884,30 +1910,35 @@ function drawCrystal(c, s, w, e, f) {
   c.fillStyle = '#fff'; c.beginPath(); c.moveTo(s * .05, -s * .3 - k); c.lineTo(s * .08, -s * .33); c.lineTo(s * .05 + k, -s * .3); c.lineTo(s * .08, -s * .27); c.lineTo(s * .05, -s * .3 + k); c.lineTo(s * .02, -s * .27); c.lineTo(s * .05 - k, -s * .3); c.lineTo(s * .02, -s * .33); c.fill();
   lpEye(c, s * .62, -s * .1, s * .07 * e, '#0a2a5a');
 }
-// 青龍：由多邊形節點組成的身體
-function drawDragon(c, s, w, e, f) {
+// 龍：由多邊形節點組成的身體（P 換顏色可以做出不同的龍）
+const DRAGON0 = { body: ['#1b8a5a', '#34c080', '#9af0c4'], gold: '#ffd24a', tail: ['#ffd24a', '#ffa028'], whisker: 'rgba(255,230,150,0.95)', belly: 'rgba(255,240,190,0.75)',
+  head: ['#9af0c4', '#b8ffd8', '#6ee0a4', '#34c080', '#1b8a5a', '#2aa870', '#58d496'], eye: '#062a18' };
+function drawDragon(c, s, w, e, f, P = DRAGON0) {
   const n = 20, pts = [];
   for (let i = 0; i < n; i++) { const u = i / (n - 1); pts.push([s * .8 - u * s * 2.5, Math.sin(T * 4 - u * 5) * s * .28 * u, s * (.3 - u * .19)]); }
+  if (P.aura) glowDot(c, -s * .3, 0, s * 1.9, P.aura, .35 + .1 * Math.sin(T * 2));
   const [tx, ty] = pts[n - 1];
-  c.save(); c.translate(tx, ty); lpTail(c, 0, { type: 'fan', len: .5, spread: .38, cols: ['#ffd24a', '#ffa028'] }, s, w); c.restore();
-  c.fillStyle = '#ffd24a';
-  for (let i = 3; i < n - 2; i += 3) { const [x, y, r] = pts[i]; c.beginPath(); c.moveTo(x - r * .7, y - r * .7); c.lineTo(x - r * .3, y - r * 1.7); c.lineTo(x + r * .6, y - r * .75); c.fill(); }
+  c.save(); c.translate(tx, ty); lpTail(c, 0, { type: 'fan', len: .5, spread: .38, cols: P.tail }, s, w); c.restore();
+  c.fillStyle = P.gold;
+  for (let i = 3; i < n - 2; i += 3) { const [x, y, r] = pts[i]; c.beginPath(); c.moveTo(x - r * .7, y - r * .7); c.lineTo(x - r * .3, y - r * (P.spike || 1.7)); c.lineTo(x + r * .6, y - r * .75); c.fill(); }
+  if (P.mane) for (let i = 1; i < n - 4; i += 2) { const [x, y, r] = pts[i]; c.fillStyle = css(hex(P.mane[i % P.mane.length]), .8); c.beginPath(); c.moveTo(x, y - r * .6); c.lineTo(x - r * 1.4, y - r * (2.2 + Math.sin(T * 3 + i) * .4)); c.lineTo(x - r * .9, y - r * .5); c.fill(); }
   const hexa = (x, y, r) => { const q = []; for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; q.push([x + r * Math.cos(a), y + r * Math.sin(a)]); } return q; };
   for (let i = n - 1; i >= 0; i--) {
     const [x, y, r] = pts[i], q = hexa(x, y, r * 1.08);
-    [['#1b8a5a', 0, 2], ['#34c080', 2, 4], ['#9af0c4', 4, 6]].forEach(([col, a, b]) => {
+    [[P.body[0], 0, 2], [P.body[1], 2, 4], [P.body[2], 4, 6]].forEach(([col, a, b]) => {
       c.fillStyle = col; c.beginPath(); c.moveTo(x, y); for (let k = a; k <= b; k++) c.lineTo(...q[k % 6]); c.closePath(); c.fill();
     });
-    c.fillStyle = 'rgba(255,240,190,0.75)'; c.beginPath(); c.moveTo(...q[0]); c.lineTo(...q[1]); c.lineTo(...q[2]); c.lineTo(x, y + r * .3); c.closePath(); c.fill();
+    c.fillStyle = P.belly; c.beginPath(); c.moveTo(...q[0]); c.lineTo(...q[1]); c.lineTo(...q[2]); c.lineTo(x, y + r * .3); c.closePath(); c.fill();
   }
-  c.strokeStyle = '#ffd24a'; c.lineWidth = s * .07; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.strokeStyle = P.gold; c.lineWidth = s * .07; c.lineCap = 'round'; c.lineJoin = 'round';
   c.beginPath(); c.moveTo(s * .72, -s * .2); c.lineTo(s * .52, -s * .45); c.lineTo(s * .4, -s * .6); c.moveTo(s * .62, -s * .22); c.lineTo(s * .44, -s * .38); c.lineTo(s * .3, -s * .48); c.stroke();
-  c.lineWidth = s * .03; c.strokeStyle = 'rgba(255,230,150,0.95)';
+  c.lineWidth = s * .03; c.strokeStyle = P.whisker;
   c.beginPath(); c.moveTo(s * 1.1, s * .08); c.lineTo(s * 1.3, s * .3 + w * s * .5); c.lineTo(s * 1.45, s * .6 + w * s); c.moveTo(s * 1.1, 0); c.lineTo(s * 1.32, s * .05 - w * s * .5); c.lineTo(s * 1.55, s * .25 - w * s); c.stroke();
   const H = [[s * 1.2, s * .02], [s * 1.05, -s * .22], [s * .75, -s * .28], [s * .5, -s * .1], [s * .55, s * .2], [s * .85, s * .27], [s * 1.12, s * .15]], HC = [s * .85, 0];
-  const hc = ['#9af0c4', '#b8ffd8', '#6ee0a4', '#34c080', '#1b8a5a', '#2aa870', '#58d496'];
-  H.forEach((p, i) => { const q = H[(i + 1) % H.length]; c.fillStyle = hc[i]; c.beginPath(); c.moveTo(...HC); c.lineTo(...p); c.lineTo(...q); c.closePath(); c.fill(); });
-  lpEye(c, s * .95, -s * .08, s * .065 * e, '#062a18');
+  H.forEach((p, i) => { const q = H[(i + 1) % H.length]; c.fillStyle = P.head[i]; c.beginPath(); c.moveTo(...HC); c.lineTo(...p); c.lineTo(...q); c.closePath(); c.fill(); });
+  lpEye(c, s * .95, -s * .08, s * .065 * e, P.eye);
+  // 龍珠：在嘴前面發光
+  if (P.pearl) { const px = s * 1.5, py = s * .15 + Math.sin(T * 2) * s * .05; glowDot(c, px, py, s * .45, P.pearl, .8); const g = c.createRadialGradient(px - s * .04, py - s * .05, 0, px, py, s * .15); g.addColorStop(0, '#ffffff'); g.addColorStop(1, P.pearl); c.fillStyle = g; circle(c, px, py, s * .14); c.fill(); }
 }
 
 // 四角星形的閃光
@@ -1929,33 +1960,66 @@ function tube(c, pts, ws, col, alpha = 1) {
   return { L, R };
 }
 // 海馬：直立的身體、捲起來的尾巴、長長的嘴和頭冠
-function drawSeahorse(c, s, w, e, f) {
+const HORSE0 = { body: '#f4a634', line: 'rgba(160,80,10,0.45)', belly: 'rgba(255,230,170,0.85)', fin: ['#ffe08a', '#ffc860'], crown: '#ffd070', eye: '#1a0e04',
+  head: ['#f0a030', '#ffc050', '#ffd070', '#f8b040', '#e89020', '#f09a28', '#e08818', '#ea9624', '#f4a634'] };
+function drawSeahorse(c, s, w, e, f, P = HORSE0) {
   const ph = f ? f.phase : 0, bob = Math.sin(T * 2 + ph) * .06;
   c.save(); c.rotate(bob);
   // 背鰭（快速拍動的小扇子）
   const fl = Math.sin(T * 14 + ph) * .25;
+  if (P.aura) glowDot(c, s * .1, 0, s * 1.2, P.aura, .4);
+  // 天馬的羽毛翅膀
+  if (P.wings) for (const k of [0, 1]) {
+    const flap = Math.sin(T * 4 + ph + k) * .35;
+    c.save(); c.translate(-s * .02, -s * .12); c.rotate(-2.3 + flap - k * .35);
+    for (let i = 0; i < 6; i++) { const len = s * (1.05 - i * .12), a = i * .22; polyFill(c, [[0, 0], [Math.cos(a) * len, Math.sin(a) * len - s * .08], [Math.cos(a + .2) * len * .9, Math.sin(a + .2) * len * .9]], css(hex(P.wings[i % P.wings.length]), k ? .75 : .92)); }
+    c.restore();
+  }
   c.save(); c.translate(-s * .02, s * .1); c.rotate(-.3 + fl);
-  polyFin(c, 0, 0, [[0, -s * .12], [-s * .22, -s * .1], [-s * .26, s * .02], [-s * .2, s * .12], [0, s * .1]], ['#ffe08a', '#ffc860'], .8);
+  polyFin(c, 0, 0, [[0, -s * .12], [-s * .22, -s * .1], [-s * .26, s * .02], [-s * .2, s * .12], [0, s * .1]], P.fin, .8);
   c.restore();
   const spine = [[s * .14, -s * .42], [s * .06, -s * .2], [s * .1, s * .04], [s * .06, s * .28], [-s * .04, s * .48], [-s * .1, s * .64], [-s * .06, s * .8], [s * .06, s * .86], [s * .15, s * .8], [s * .14, s * .7], [s * .06, s * .68]];
   const ws = [s * .12, s * .15, s * .18, s * .15, s * .11, s * .08, s * .06, s * .05, s * .04, s * .03, s * .02];
-  const { L, R } = tube(c, spine, ws, '#f4a634');
-  c.strokeStyle = 'rgba(160,80,10,0.45)'; c.lineWidth = Math.max(1, s * .02);
+  const { L, R } = tube(c, spine, ws, P.body);
+  c.strokeStyle = P.line; c.lineWidth = Math.max(1, s * .02);
   for (let i = 1; i < spine.length - 1; i++) { c.beginPath(); c.moveTo(...L[i]); c.lineTo(...R[i]); c.stroke(); }
   // 肚子比較淺
-  polyFill(c, [[s * .2, -s * .18], [s * .26, s * .05], [s * .2, s * .28], [s * .12, s * .3], [s * .16, s * .05], [s * .12, -s * .16]], 'rgba(255,230,170,0.85)');
+  polyFill(c, [[s * .2, -s * .18], [s * .26, s * .05], [s * .2, s * .28], [s * .12, s * .3], [s * .16, s * .05], [s * .12, -s * .16]], P.belly);
   // 頭：往前伸的長嘴
   const HD = [[s * .02, -s * .5], [s * .1, -s * .66], [s * .24, -s * .66], [s * .34, -s * .56], [s * .62, -s * .54], [s * .64, -s * .46], [s * .32, -s * .44], [s * .22, -s * .34], [s * .06, -s * .36]], HC = [s * .2, -s * .5];
-  const hc = ['#f0a030', '#ffc050', '#ffd070', '#f8b040', '#e89020', '#f09a28', '#e08818', '#ea9624', '#f4a634'];
-  HD.forEach((p, i) => { const q = HD[(i + 1) % HD.length]; lpTri(c, HC, p, q, hc[i]); });
+  HD.forEach((p, i) => { const q = HD[(i + 1) % HD.length]; lpTri(c, HC, p, q, P.head[i]); });
   // 頭冠
-  c.fillStyle = '#ffd070';
+  c.fillStyle = P.crown;
   for (let k = 0; k < 3; k++) { const x = s * (.08 + k * .06); c.beginPath(); c.moveTo(x, -s * .63); c.lineTo(x + s * .02, -s * (.76 - k * .02)); c.lineTo(x + s * .05, -s * .64); c.fill(); }
   c.fillStyle = 'rgba(255,255,255,0.7)'; for (const [x, y] of [[.1, -.1], [.02, .15], [-.02, .4], [.16, -.3]]) { circle(c, x * s, y * s, s * .025); c.fill(); }
-  lpEye(c, s * .24, -s * .54, s * .06 * e, '#1a0e04');
+  lpEye(c, s * .24, -s * .54, s * .06 * e, P.eye);
   blush(c, s * .3, -s * .45, s * .05);
   c.restore();
 }
+// ---- 更高級的夢幻生物（用現有的造型換成更夢幻的配色，再加上光暈與星光） ----
+function sparkles(c, s, f, col, n = 5) {
+  const ph = f ? f.phase : 0;
+  for (let i = 0; i < n; i++) {
+    const k = Math.max(0, Math.sin(T * 3 + i * 1.7 + ph)); if (k < .1) continue;
+    const a = T * .9 + i * 2.4 + ph; c.fillStyle = css(hex(col), k); star4(c, Math.cos(a) * s * 1.1, Math.sin(a * 1.3) * s * .8, s * .07 * (.5 + k));
+  }
+}
+const PEGASUS = { body: '#f4eefc', line: 'rgba(170,140,220,0.4)', belly: 'rgba(255,240,250,0.9)', fin: ['#ffe8a0', '#ffc8f0'], crown: '#ffd860', eye: '#302050',
+  head: ['#fff8ff', '#f4e8ff', '#ffffff', '#ece0fa', '#e2d4f6', '#f0e6fc', '#dccbf2', '#e8dcf8', '#f4eefc'], wings: ['#ffffff', '#fff0fa', '#e8f4ff', '#fff6d8', '#f4e8ff'], aura: '#fff0c0' };
+function drawPegasus(c, s, w, e, f) { drawSeahorse(c, s, w, e, f, PEGASUS); sparkles(c, s, f, '#fff6c0'); }
+const LOTUS = { line: 'rgba(255,220,160,0.6)', rib: ['#ffd27a', '#ffb0d0'], glow: '#ffcf70', bell: ['#ff9ac8', '#ffb0d4', '#ffc8dc', '#ffe0b0', '#fff0c8', '#ffe0b0', '#ffc8dc', '#ffb0d4'],
+  rim: 'rgba(255,240,200,0.8)', petals: ['#ffb8d8', '#ffd0e4', '#ffe4a8'], core: 'rgba(255,230,140,0.9)' };
+function drawLotusJelly(c, s, w, e, f) { drawJelly(c, s, w, e, f, LOTUS); sparkles(c, s, f, '#ffe8a0'); }
+const STARMANTA = { tail: '#2a1a5a', c: ['#5a3ab8', '#3a2490', '#4a30a8', '#3a2490', '#2e1c78', '#241664', '#4a34a8', '#2e1e80'], belly: ['rgba(140,220,255,0.85)', 'rgba(200,150,255,0.75)'], eye: '#e8f0ff', stars: true, glow: '#7ae0ff' };
+function drawStarManta(c, s, w, e, f) { drawManta(c, s, w, e, f, STARMANTA); sparkles(c, s, f, '#bff4ff', 6); }
+const ICEDRAGON = { body: ['#3a78c8', '#7ab8f0', '#e0f4ff'], gold: '#bff4ff', tail: ['#e0f8ff', '#9ad8ff'], whisker: 'rgba(220,250,255,0.95)', belly: 'rgba(255,255,255,0.8)',
+  head: ['#e0f4ff', '#ffffff', '#b8e0ff', '#7ab8f0', '#3a78c8', '#5a98e0', '#9ad0f8'], eye: '#0a2050', spike: 2.4, mane: ['#9af8e0', '#b8a8ff', '#ffffff'], aura: '#aef0ff' };
+function drawIceDragon(c, s, w, e, f) { drawDragon(c, s, w, e, f, ICEDRAGON); sparkles(c, s, f, '#e8fbff', 6); }
+function drawRainbowWhale(c, s, w, e, f) { drawModel(c, s, w, e, f, MODELS.rainbowwhale); }
+const DRAGONKING = { body: ['#c8781a', '#f0b030', '#fff0a0'], gold: '#ff5a3a', tail: ['#ffe070', '#ff7a3a'], whisker: 'rgba(255,240,180,0.95)', belly: 'rgba(255,250,220,0.85)',
+  head: ['#fff0a0', '#ffffc8', '#ffd860', '#f0b030', '#c8781a', '#e0a028', '#f8c848'], eye: '#3a0a00', spike: 2.2, mane: ['#ff5a3a', '#ff8a4a', '#ffd040'], aura: '#ffd070', pearl: '#bff0ff' };
+function drawDragonKing(c, s, w, e, f) { drawDragon(c, s, w, e, f, DRAGONKING); sparkles(c, s, f, '#fff4b0', 7); }
+
 // 海龜：多邊形龜殼、左右划動的鰭狀腳
 function drawTurtle(c, s, w, e, f) {
   const fl = Math.sin(T * 2.2 + (f ? f.phase : 0));
@@ -2854,7 +2918,7 @@ function renderTab() {
         <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　寶物價值 ×${sp.valueMult}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
         ${!own ? costBtn('buyStarFish', sp.id, sp.cost, '兌換', '', true)
           : shown ? `<button class="on" data-act="toggleShow" data-arg="${sp.id}">收回</button>`
-          : `<button data-act="toggleShow" data-arg="${sp.id}" ${state.starShown.length >= MAX_SHOWN ? 'disabled title="最多放 3 隻"' : ''}>放入</button>`}</div>`;
+          : `<button data-act="toggleShow" data-arg="${sp.id}" ${state.starShown.length >= MAX_SHOWN ? `disabled title="最多放 ${MAX_SHOWN} 隻"` : ''}>放入</button>`}</div>`;
     }
     h += `<p class="hint">✨ 用星星兌換的限定背景「星河幻境」在「背景」頁，限定造景「星之水晶」在「設備・造景」頁。</p>`;
   }
