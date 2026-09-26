@@ -2416,7 +2416,14 @@ function persistNote() {
 
 // ====== 雲端存檔（Google 帳號登入，資料放在 Firebase） ======
 // 把 Firebase 專案「網頁應用程式」的設定（firebaseConfig）貼在這裡；留 null 就不會顯示雲端存檔功能
-const FIREBASE_CONFIG = null;
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyDVGYs8cBXTxDk_TJTSrF9O2aAaQpfuT-Y',
+  authDomain: 'aquarium-kai.firebaseapp.com',
+  projectId: 'aquarium-kai',
+  storageBucket: 'aquarium-kai.firebasestorage.app',
+  messagingSenderId: '1096455825999',
+  appId: '1:1096455825999:web:f48012780af03f3559583a',
+};
 const Cloud = (() => {
   const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
   let ready = null, user = null, db = null, lastUp = 0, lastSig = '', status = '', busy = false;
