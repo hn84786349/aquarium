@@ -2008,7 +2008,7 @@ function drawSeahorse(c, s, w, e, f, P = HORSE0) {
   const ph = f ? f.phase : 0, bob = Math.sin(T * 2 + ph) * .06;
   c.save(); c.rotate(bob);
   // 背鰭（快速拍動的小扇子）
-  const fl = Math.sin(T * 14 + ph) * .25;
+  const fl = Math.sin(T * 9 + ph) * .22;
   if (P.aura) glowDot(c, s * .1, 0, s * 1.2, P.aura, .4);
   // 天馬的羽毛翅膀
   if (P.wings) for (const k of [0, 1]) {
@@ -2149,7 +2149,8 @@ function drawFish(c, f, t, alpha = 1) {
     c.fillStyle = g; c.fillRect(f.x - s * 2.2, f.y - s * 2.2, s * 4.4, s * 4.4);
   }
   const spd = Math.hypot(f.vx, f.vy);
-  const w = Math.sin(t * (5 + spd * .05) + f.phase) * (0.12 + Math.min(.15, spd / 600));
+  // 擺尾的節奏：每隻魚自己累積（swim），速度改變時只會平順地加快或變慢，不會突然跳動
+  const w = Math.sin(f.swim ?? (t * 5 + f.phase)) * (0.12 + Math.min(.15, spd / 600));
   c.save(); c.translate(f.x, f.y); c.scale(f.face, 1);
   c.rotate(clamp(Math.atan2(f.vy, Math.abs(f.vx) + 20), -.45, .45));
   if (f.hunger <= 0) c.globalAlpha = alpha * .75;
@@ -2189,7 +2190,10 @@ function nearestPellet(f) {
   for (const p of pellets) { const d = (p.x - f.x) ** 2 + (p.y - f.y) ** 2; if (d < bd) { bd = d; best = p; } }
   return best;
 }
+// 依目前速度累積擺尾的角度（泳速越快擺得越快，最多約每秒 1.8 下）
+function swimStep(f, dt) { const spd = Math.hypot(f.vx, f.vy); f.swim = ((f.swim ?? f.phase) + dt * Math.min(11, 5 + spd * .05)) % 628.3; }
 function updateStarFish(f, dt) {
+  swimStep(f, dt);
   const sp = SSP[f.sp];
   f.wanderT -= dt;
   if (f.wanderT <= 0 || Math.hypot(f.tx - f.x, f.ty - f.y) < 15) { f.tx = rand(60, W - 60); f.ty = rand(TOP + 20, FLOOR - 40); f.wanderT = rand(4, 9); }
@@ -2211,6 +2215,7 @@ function syncStarFish() {
   });
 }
 function updateFish(f, dt) {
+  swimStep(f, dt);
   const sp = SP[f.sp], s = fishScale(f);
   f.hunger = Math.max(0, f.hunger - sp.hungerRate * B.hunger * dt);
   let speed = sp.speed * (f.growth < .35 ? 1.15 : 1), target = null;
@@ -2283,7 +2288,7 @@ function update(dt) {
   for (const f of state.fish) updateFish(f, dt);
   for (const f of starFish) updateStarFish(f, dt);
   for (let i = releasing.length - 1; i >= 0; i--) {
-    const r = releasing[i]; r.life -= dt; r.f.y -= 70 * dt; r.f.x += r.f.vx * dt * .5; r.f.vy = -60;
+    const r = releasing[i]; r.life -= dt; swimStep(r.f, dt); r.f.y -= 70 * dt; r.f.x += r.f.vx * dt * .5; r.f.vy = -60;
     if (Math.random() < dt * 8) particles.push({ x: r.f.x + rand(-15, 15), y: r.f.y + rand(-10, 10), vy: -rand(10, 30), life: .8, icon: '⭐' });
     if (r.life <= 0) releasing.splice(i, 1);
   }
