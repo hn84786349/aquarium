@@ -2508,10 +2508,16 @@ async function resetGame() {
 // 賣魚最多拿回價格的 25%，而且不超過這隻魚大約 1 小時的產值，避免「繁殖後賣小魚」比養魚賺得還多
 function sellPrice(f) { const sp = SP[f.sp]; return Math.floor(Math.min(sp.price * .25, sp.income * 3600) * (.2 + .8 * f.growth)); }
 function releaseStars(f) { const st = SP[f.sp].stars; return f.growth >= 1 ? st : Math.floor(st * f.growth * .5); }
+const releaseOK = new Set();
 async function releaseFish(id) {
   let f = state.fish.find(x => x.id === id); if (!f) return;
   const st = releaseStars(f);
-  if ((SP[f.sp].price >= 700 || st === 0) && !await ask(st ? `確定要放生「${f.name}」嗎？\n可以獲得 ⭐${st}` : `「${f.name}」還太小，放生拿不到星星，確定要放生嗎？`, '放生')) return;
+  // 同一種魚只問第一次（這次開遊戲期間有效）；太小拿不到星星的另外問一次
+  const key = f.sp + (st ? '' : ':young');
+  if ((SP[f.sp].price >= 700 || st === 0) && !releaseOK.has(key)) {
+    if (!await ask(st ? `確定要放生「${f.name}」嗎？\n可以獲得 ⭐${st}\n\n（之後放生${SP[f.sp].name}就不會再問）` : `「${f.name}」還太小，放生拿不到星星，確定要放生嗎？\n\n（之後放生${SP[f.sp].name}的小魚就不會再問）`, '放生')) return;
+    releaseOK.add(key);
+  }
   f = state.fish.find(x => x.id === id); if (!f) return;
   state.fish.splice(state.fish.indexOf(f), 1);
   state.stars += st; state.starEarned += st;
