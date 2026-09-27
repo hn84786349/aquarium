@@ -446,12 +446,17 @@ const SCENE = [
     lv: ['小海葵', '粉紅海葵', '海葵與小丑魚', '海葵花園', '夜光海葵'], box: [[24, 34], [28, 42], [40, 56], [52, 58], [52, 60]] },
   { id: 'crystal',  name: '星之水晶', icon: '💠', layer: 1, x: 0,   y: H - 40,     eff: 'all',     label: '全部加成',   sign: '+', per: [.04, .08, .13, .19, .26], star: true, starPrices: [15, 35, 75, 150, 300],
     lv: ['小水晶', '水晶簇', '星光水晶', '閃耀水晶林', '星之聖晶'], box: [[20, 34], [24, 36], [30, 48], [34, 64], [38, 118]] },
+  // 星星造景（後期）：月光貝殼放在左下角的大石頭上、彩虹噴泉在城堡和拱門中間
+  { id: 'moonshell', name: '月光貝殼', icon: '🐚', layer: 1, x: 0,   y: H - 30,     eff: 'value',   label: '寶物價值',   sign: '+', per: [.05, .10, .16, .23, .32], star: true, starPrices: [40, 100, 220, 450, 900],
+    lv: ['小貝殼', '珍珠貝', '月光貝', '月光寶貝', '月之珍珠'], box: [[18, 20], [22, 28], [28, 34], [36, 40], [40, 70]] },
+  { id: 'fountain',  name: '彩虹噴泉', icon: '⛲', layer: 0, x: .29, y: FLOOR + 8, eff: 'all',     label: '全部加成',   sign: '+', per: [.03, .06, .10, .15, .21], star: true, starPrices: [120, 300, 700, 1500, 3000],
+    lv: ['小石噴泉', '貝殼噴泉', '雙層噴泉', '彩虹噴泉', '七彩仙境噴泉'], box: [[30, 44], [34, 50], [36, 76], [52, 90], [58, 130]] },
 ];
 const SCN = Object.fromEntries(SCENE.map(p => [p.id, p]));
 const scenePrice = (p, lv) => p.star ? p.starPrices[lv - 1] : nice(p.base * Math.pow(p.mul, lv - 1));
 const sceneEff = (p, lv) => `${p.label} ${p.sign}${Math.round(p.per[lv - 1] * 100)}%`;
-// 星之水晶長在右下角的大石頭上，其他照比例排
-const scenePos = p => p.id === 'crystal' ? { x: W - 64 * sceneK(p), y: p.y } : { x: Math.round(W * p.x), y: p.y };
+// 星之水晶長在右下角的大石頭上、月光貝殼在左下角，其他照比例排
+const scenePos = p => p.id === 'crystal' ? { x: W - 64 * sceneK(p), y: p.y } : p.id === 'moonshell' ? { x: 50 * sceneK(p), y: p.y } : { x: Math.round(W * p.x), y: p.y };
 // 造景的縮放：前排大一點；螢幕比較窄時整體縮小，避免擠在一起
 const sceneK = p => (p.layer ? 1.5 : 1.3) * (p.k || 1) * clamp(W / 1300, .72, 1);
 
@@ -909,7 +914,74 @@ function scCrystal(c, lv) {
     for (let i = 0; i < 5; i++) twinkle(c, -34 + i * 17, -60 - (i % 2) * 20, 5, i, '#f0e0ff');
   }
 }
-const SCENE_DRAW = { castle: scCastle, arch: scArch, ship: scShip, coral: scCoral, starfish: scStarfish, clam: scClam, anemone: scAnemone, crystal: scCrystal };
+// 扇形的貝殼：從鉸鏈 (x,y) 展開，深淺交錯的放射紋
+function shellFan(c, x, y, r, a0, a1, cols, sy = 1, n = 8) {
+  for (let i = 0; i < n; i++) {
+    const a = a0 + (a1 - a0) * i / n, b = a0 + (a1 - a0) * (i + 1) / n, m = (a + b) / 2;
+    tpoly(c, [[x, y], [x + Math.cos(a) * r, y + Math.sin(a) * r * sy], [x + Math.cos(m) * r * 1.06, y + Math.sin(m) * r * 1.06 * sy], [x + Math.cos(b) * r, y + Math.sin(b) * r * sy]], cols[i % 2]);
+  }
+}
+// 月光貝殼：Lv1 合起來的小貝殼 → Lv5 浮著一顆月之珍珠
+function scMoonShell(c, lv) {
+  const r = [14, 18, 22, 26, 30][lv - 1], rr = mulberry(57), lid = ['#ffe6f0', '#f4c4da'], bowl = ['#fcd8e6', '#eab0ca'];
+  lpRock(c, rr, 0, 6, 14 + lv * 3, SC.rock);
+  if (lv >= 4) for (const d of [-1, 1]) shellFan(c, d * r * 1.25, 2, r * .38, -Math.PI + .25, -.25, ['#fff0d8', '#f0d0a8'], 1, 6);
+  if (lv === 1) { shellFan(c, 0, 0, r, -Math.PI + .25, -.25, lid); tpoly(c, [[-4, 0], [4, 0], [3, 4], [-3, 4]], '#e0a8c0'); return; }
+  const pr = r * .24, py = -r * .22;
+  if (lv >= 3) glowDot(c, 0, py, r * (lv >= 4 ? 1.6 : 1.1), '#fff4e0', .45 + .1 * Math.sin(T * 2));
+  shellFan(c, 0, -2, r, -Math.PI + .15, -.15, lid, .95);
+  c.fillStyle = tc('#fff6fa', 1, .95); ell(c, 0, -3, r * .82, r * .22); c.fill();
+  const g = c.createRadialGradient(-pr * .3, py - pr * .3, 0, 0, py, pr); g.addColorStop(0, gcol('#ffffff')); g.addColorStop(1, gcol(lv >= 3 ? '#f8e8ff' : '#f0e6ea'));
+  c.fillStyle = g; circle(c, 0, py, pr); c.fill();
+  shellFan(c, 0, -3, r, .12, Math.PI - .12, bowl, .42);
+  if (lv >= 4) for (let i = 0; i < 3; i++) twinkle(c, -r * .8 + i * r * .8, -r * 1.1 - (i % 2) * 8, 4, i, '#fff4d8');
+  if (lv === 5) {
+    // 浮在上方的月之珍珠：旁邊一彎新月、一圈柔光
+    const y = -r * 1.75 + Math.sin(T * 1.3) * 2, R = 9;
+    glowDot(c, 0, y, 34, '#fff4d0', .75);
+    const mg = c.createRadialGradient(-4, y - 4, 1, 0, y, R); mg.addColorStop(0, gcol('#ffffff')); mg.addColorStop(1, gcol('#ffe8b8')); c.fillStyle = mg; circle(c, 0, y, R); c.fill();
+    c.fillStyle = gcol('#fff0b0', 1, .95); c.beginPath(); c.arc(0, y, R + 7, -Math.PI * .85, Math.PI * .15); c.arc(3, y - 3, R + 4.5, Math.PI * .15, -Math.PI * .85, true); c.fill();
+    for (let i = 0; i < 5; i++) { const a = T * .7 + i * 1.26; twinkle(c, Math.cos(a) * 26, y + Math.sin(a) * 10, 3.5, i + 3, '#fffbe8'); }
+  }
+}
+// 彩虹噴泉：Lv1 小石噴泉 → Lv5 三層七彩仙境噴泉
+function scFountain(c, lv) {
+  const stone = lv >= 3 ? '#eceaf4' : '#b8bcc8', trim = lv >= 5 ? '#ffd870' : lv >= 3 ? '#d8d4e8' : '#9ea4b4';
+  const tiers = [[34, 0, 12]]; if (lv >= 3) tiers.push([22, -32, 9]); if (lv >= 5) tiers.push([14, -56, 7]);
+  const sc = [.85, 1, 1, 1.05, 1.1][lv - 1]; c.save(); c.scale(sc, sc);
+  const topY = tiers[tiers.length - 1][1] - 12, spoutH = [16, 24, 26, 30, 34][lv - 1], wy = topY - spoutH;
+  // 中間的柱子
+  tpoly(c, [[-11, 0], [11, 0], [7, topY], [-7, topY]], stone, .82);
+  // 彩虹（Lv4 起）
+  if (lv >= 4) {
+    c.save(); c.lineWidth = 3.5;
+    ['#ff8ab0', '#ffc070', '#fff080', '#90f0b0', '#80c8ff', '#b890ff'].forEach((col, k) => { c.strokeStyle = gcol(col, 1, .45); c.beginPath(); c.arc(0, topY + 10, (lv === 5 ? 62 : 50) - k * 3.6, Math.PI * 1.05, Math.PI * 1.95); c.stroke(); });
+    c.restore();
+  }
+  for (const [w, y, h] of tiers) {
+    // 水池：外壁 + 金邊 + 水面
+    tpoly(c, [[-w, y - h], [w, y - h], [w * .8, y], [-w * .8, y]], stone, .95);
+    tpoly(c, [[-w * .8, y], [w * .8, y], [w * .7, y - h * .35], [-w * .7, y - h * .35]], stone, .8);
+    c.fillStyle = tc(trim); ell(c, 0, y - h, w, h * .32); c.fill();
+    c.fillStyle = gcol('#9ee8ff', 1, .85); ell(c, 0, y - h, w * .88, h * .24); c.fill();
+    // 從上一層溢出來的水簾
+    c.fillStyle = gcol('#c8f4ff', 1, .35); c.fillRect(-w * .9, y - h + 1, 3, h - 2); c.fillRect(w * .9 - 3, y - h + 1, 3, h - 2);
+  }
+  // 中間往上噴的水柱與四散的水珠
+  c.fillStyle = gcol('#d8f8ff', 1, .6); polyFill(c, [[-2.5, topY], [2.5, topY], [1.5, wy], [-1.5, wy]], gcol('#d8f8ff', 1, .6));
+  const n = 6 + lv * 2;
+  for (let i = 0; i < n; i++) {
+    const q = (T * .7 + i / n) % 1, d = i % 2 ? 1 : -1, spread = 10 + (i % 3) * 6 + lv * 3, x = d * q * spread, y = wy + (1 - Math.pow(1 - 2 * q, 2)) * -8 + q * q * (topY - wy + 6);
+    c.fillStyle = lv >= 4 ? css(hsl((i * 50 + T * 40) % 360, .8, .85), .9) : gcol('#e8fbff', 1, .9); circle(c, x, y, 1.6); c.fill();
+  }
+  if (lv === 5) {
+    const y = wy - 14 + Math.sin(T * 1.6) * 3; glowDot(c, 0, y, 26, '#fff0c8', .8);
+    c.fillStyle = css(hsl((T * 60) % 360, .85, .8)); circle(c, 0, y, 5); c.fill();
+    for (let i = 0; i < 5; i++) twinkle(c, -40 + i * 20, -96 - (i % 2) * 16, 4.5, i, '#fff6d0');
+  }
+  c.restore();
+}
+const SCENE_DRAW = { castle: scCastle, arch: scArch, ship: scShip, coral: scCoral, starfish: scStarfish, clam: scClam, anemone: scAnemone, crystal: scCrystal, moonshell: scMoonShell, fountain: scFountain };
 
 // 把造景畫到水族箱：layer 0 在海草後面、layer 1 在海草前面
 // 造景的動畫很慢，先畫在兩張暫存畫布上、每秒更新約 15 次，每一幀只要貼上去，手機比較不會卡
@@ -980,12 +1052,14 @@ const FEEDER_MAX = 5, feederCost = lv => 500 * Math.pow(4, lv), feederInterval =
 const SNAIL_MAX = 5, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
 // Lv.4 起有兩隻蝸牛，一隻顧左半邊、一隻顧右半邊
 const snailCount = () => state.snailLv >= 4 ? 2 : state.snailLv > 0 ? 1 : 0;
-// 新設備（各 3 級）：離線收集網、育嬰室、打氣機
+// 新設備（各 3 級）：離線收集網、育嬰室、打氣機、繁殖燈
 const EQUIP = {
   net:     { icon: '⏰', name: '離線收集網', costs: [8000, 400000, 20000000], desc: lv => `離開遊戲時，最多累積 ${offlineMaxH(lv)} 小時的收益` },
   nursery: { icon: '🍼', name: '育嬰室',     costs: [3000, 150000, 8000000],  desc: lv => lv ? `新生的小魚一出生就有 ${Math.round(nurseryGrowth(lv) * 100)}% 成長度` : '新生的小魚一出生就先長大一些' },
   pump:    { icon: '🫧', name: '打氣機',     costs: [2000, 80000, 3000000],   desc: lv => lv ? `魚的飽食度下降慢 ${lv * 10}%，水族箱多一串氣泡` : '讓魚比較不容易餓，還會冒出一串氣泡' },
+  lamp:    { icon: '💡', name: '繁殖燈',     costs: [20000, 2000000, 200000000], desc: lv => lv ? `繁殖速度再快 ${Math.round(LAMP_BOOST[lv] * 100)}%（最高級的魚約 ${fmtTime(Math.round(21600 / (1 + LAMP_BOOST[lv]) / 60) * 60)} 生一次），水族箱上方亮起粉紅色的燈` : '讓魚更快生小魚（跟造景的繁殖加成疊加）' },
 };
+const LAMP_BOOST = [0, .15, .3, .5];
 const offlineMaxH = (lv = state.netLv) => 2 + 2 * lv;
 const nurseryGrowth = (lv = state.nurseryLv) => [0, .2, .35, .5][lv];
 const NAMES = ['小橘', '泡泡', '阿福', '圓圓', '小藍', '閃閃', '豆豆', '咕嚕', '皮皮', '點點', '糖糖', '米米', '旺財', '布丁', '湯圓', '麻糬', '小白', '阿金', '飯糰', '雪球', 'Nemo', 'Bubbles', 'Lucky'];
@@ -994,7 +1068,7 @@ const NAMES = ['小橘', '泡泡', '阿福', '圓圓', '小藍', '閃閃', '豆�
 let state;
 function newState() {
   return {
-    coins: 100, capLv: 0, feederLv: 0, snailLv: 0, netLv: 0, nurseryLv: 0, pumpLv: 0, food: 'basic',
+    coins: 100, capLv: 0, feederLv: 0, snailLv: 0, netLv: 0, nurseryLv: 0, pumpLv: 0, lampLv: 0, food: 'basic',
     bg: 'fresh', ownedBg: ['fresh'], scene: newScene(),
     breedT: {}, fish: [], treasures: [], nextId: 1, earned: 0, maxTier: 0,
     dex: { seen: {}, shiny: {}, claimed: [] }, ach: {}, stats: { born: 0, released: 0, visitors: 0 },
@@ -1027,7 +1101,7 @@ function calcBonus() {
     const amt = p.per[lv - 1];
     if (p.eff === 'all') for (const k in b) b[k] += amt; else b[p.eff] += amt;
   }
-  B = { value: 1 + b.value, drop: 1 + b.drop, breed: 1 + b.breed, growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger) * (1 - .1 * (state.pumpLv || 0)), raw: b };
+  B = { value: 1 + b.value, drop: 1 + b.drop, breed: (1 + b.breed) * (1 + LAMP_BOOST[state.lampLv || 0]), growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger) * (1 - .1 * (state.pumpLv || 0)), raw: b };
 }
 
 // ====== 存檔 ======
@@ -2673,6 +2747,16 @@ function drawDynamicBg() {
     }
     ctx.restore();
   }
+  // 繁殖燈：水面上吊著一盞燈，往下灑出粉紅色的光
+  if (state.lampLv > 0) {
+    const lx = W * .45, a = [0, .08, .12, .17][state.lampLv] * (.85 + .15 * Math.sin(T * 1.5));
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createLinearGradient(0, 10, 0, FLOOR); g.addColorStop(0, `rgba(255,150,200,${a * 1.6})`); g.addColorStop(1, 'rgba(255,150,200,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(lx - 14, 14); ctx.lineTo(lx + 14, 14); ctx.lineTo(lx + 170, FLOOR); ctx.lineTo(lx - 170, FLOOR); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(60,40,60,0.7)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(lx, 0); ctx.lineTo(lx, 8); ctx.stroke();
+    ctx.fillStyle = '#6a4a6a'; ctx.beginPath(); ctx.moveTo(lx - 13, 16); ctx.lineTo(lx - 6, 7); ctx.lineTo(lx + 6, 7); ctx.lineTo(lx + 13, 16); ctx.fill();
+    halo(ctx, lx, 17, 22, '#ffb0d8', .9); ctx.fillStyle = '#fff0f8'; ell(ctx, lx, 16, 8, 3); ctx.fill();
+  }
   // 後排的造景（城堡、拱門、沉船）在海草後面
   drawScene(0);
   // 擺動的低多邊形海草：每一節分成深淺兩片三角形
@@ -3480,7 +3564,7 @@ function renderTab() {
           : `<button data-act="toggleShow" data-arg="${sp.id}" ${state.starShown.length >= MAX_SHOWN ? `disabled title="最多放 ${MAX_SHOWN} 隻"` : ''}>放入</button>`}</div>`;
     }
     if (locked > 1) h += `<p class="hint">🔒 還有 ${locked - 1} 種更夢幻的生物等待解鎖…</p>`;
-    h += `<p class="hint">✨ 用星星兌換的限定背景（星河幻境、彩虹天堂等 ${BGS.filter(b => b.starPrice).length} 種）在「背景」頁，限定造景「星之水晶」在「設備・造景」頁。</p>`;
+    h += `<p class="hint">✨ 用星星兌換的限定背景（星河幻境、彩虹天堂等 ${BGS.filter(b => b.starPrice).length} 種）在「背景」頁，限定造景（${SCENE.filter(p => p.star).map(p => p.name).join('、')}）在「設備・造景」頁。</p>`;
   }
   tabEl.innerHTML = h;
   refreshAfford();
@@ -3612,7 +3696,7 @@ const ACHS = [
   { id: 'rel100', icon: '🌊', name: '海洋守護者', desc: '累計放生 100 隻魚', test: () => state.stats.released >= 100, stars: 60 },
   { id: 'shiny', icon: '🌈', name: '閃閃發亮', desc: '得到第一隻稀有色的魚', test: () => Object.keys(state.dex.shiny).length > 0, stars: 20 },
   { id: 'visit10', icon: '🐋', name: '好客的主人', desc: '招待神秘訪客 10 次', test: () => state.stats.visitors >= 10, stars: 20 },
-  { id: 'scene1', icon: '🪸', name: '造景入門', desc: '8 種造景都擁有', test: () => SCENE.every(p => state.scene[p.id].lv >= 1), stars: 30 },
+  { id: 'scene1', icon: '🪸', name: '造景入門', desc: `${SCENE.length} 種造景都擁有`, test: () => SCENE.every(p => state.scene[p.id].lv >= 1), stars: 30 },
   { id: 'scene5', icon: '🏰', name: '夢幻造景', desc: '任一造景升到 Lv.5', test: () => SCENE.some(p => state.scene[p.id].lv >= 5), stars: 30 },
   { id: 'sceneAll', icon: '🏯', name: '造景大師', desc: '全部造景升到 Lv.5', test: () => SCENE.every(p => state.scene[p.id].lv >= 5), stars: 300 },
   { id: 'bg5', icon: '🖼️', name: '背景收藏家', desc: '擁有 5 種背景', test: () => state.ownedBg.length >= 5, stars: 20 },
