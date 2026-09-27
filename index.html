@@ -58,6 +58,9 @@ canvas{display:block;touch-action:none;cursor:pointer}
 #topTabs{flex:1 1 auto;min-width:0;display:flex;gap:5px;border:0}
 #topTabs button{flex:1 1 0;min-width:0;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:16px;font-weight:700;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:clip}
 #menuClose{flex:none;min-width:44px;font-size:18px;font-weight:700}
+/* 選單裡也看得到目前的金幣和星星（手機上左上角的數字會被選單擋住或變暗） */
+#wallet{display:flex;gap:18px;justify-content:flex-end;padding:3px 14px;font-size:16px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;white-space:nowrap}
+#wallet b{color:var(--accent)}
 #topTabs button.on{background:var(--accent);color:#2a1d00;border-color:var(--accent)}
 #tabs[hidden],#tabs2[hidden]{display:none}
 #tabs2{display:flex;border-bottom:1px solid var(--border)}
@@ -199,6 +202,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
 <div id="menuBack" hidden></div>
 <aside id="menu" hidden role="dialog" aria-label="選單">
   <div class="menuHead"><nav id="topTabs"><button data-top="store" class="on">🛒 商店</button><button data-top="mine">🐠 我的魚</button><button data-top="collect">🏆 收藏</button><button data-top="settings">⚙️ 設定</button></nav><button id="menuClose" class="ghost" aria-label="關閉">✕</button></div>
+  <div id="wallet"><span>💰 <b id="wCoin">0</b></span><span>⭐ <b id="wStar">0</b></span></div>
   <nav id="tabs">
     <button data-tab="shop" class="on">魚</button>
     <button data-tab="star">⭐夢幻魚</button>
@@ -3336,7 +3340,8 @@ document.addEventListener('webkitfullscreenchange', updateFsBtn);
 
 // ====== 選單開關 ======
 let menuOpen = false, menuOpenedAt = 0;
-function openMenu() { menuOpen = true; menuOpenedAt = performance.now(); document.body.classList.add('menu-open'); $('#menu').hidden = false; $('#menuBack').hidden = false; $('#menuBtn').classList.add('on'); renderTab(); }
+function updateWallet() { $('#wCoin').textContent = fmt(state.coins); $('#wStar').textContent = fmt(state.stars); }
+function openMenu() { updateWallet(); menuOpen = true; menuOpenedAt = performance.now(); document.body.classList.add('menu-open'); $('#menu').hidden = false; $('#menuBack').hidden = false; $('#menuBtn').classList.add('on'); renderTab(); }
 function closeMenu() { menuOpen = false; document.body.classList.remove('menu-open'); $('#menu').hidden = true; $('#menuBack').hidden = true; $('#menuBtn').classList.remove('on'); }
 $('#menuBtn').onclick = () => menuOpen ? closeMenu() : openMenu();
 $('#menuClose').onclick = closeMenu;
@@ -3886,7 +3891,7 @@ function frame(now) {
   if (state.coins !== lastCoins || state.fish.length !== lastFishN || state.stars !== lastStars) {
     if (state.fish.length !== lastFishN && menuOpen && tab === 'shop' && !panelPressed) setTimeout(renderTab, 0);
     lastCoins = state.coins; lastFishN = state.fish.length; lastStars = state.stars;
-    $('#starPill').textContent = `⭐ ${fmt(state.stars)}`;
+    $('#starPill').textContent = `⭐ ${fmt(state.stars)}`; updateWallet();
     $('#coinPill').textContent = `💰 ${fmt(state.coins)}`; $('#fishPill').textContent = `🐟 ${state.fish.length}/${capacity()}`;
   }
   if (hudT > .5) {
