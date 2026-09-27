@@ -2465,7 +2465,7 @@ function render() {
   for (const b of bubbles) { ell(ctx, b.x, b.y, b.r, b.r); ctx.stroke(); }
   drawEventFront();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life); emoji(ctx, p.icon, p.x, p.y, 22); }
+  for (const p of particles) { ctx.globalAlpha = Math.min(1, p.life); ctx.drawImage(emojiSprite(p.icon), p.x - 16, p.y - 16, 32, 32); }
   ctx.globalAlpha = 1;
   for (const t of texts) {
     ctx.globalAlpha = Math.min(1, t.life); ctx.font = 'bold 28px "Noto Sans TC","PingFang TC",sans-serif';
@@ -2492,11 +2492,18 @@ function collectTreasure(t) {
   // 寶物變成金幣：價值越高，金幣越多、顏色從銅 → 銀 → 金
   const tier = v < 40 ? 0 : v < 400 ? 1 : 2, n = [2, 3, 5][tier];
   // 金幣飛向左上角的特效（可以在設定裡關掉；關掉時左上角的金幣數字直接跳一下）
-  if (state.coinFx !== false) for (let k = 0; k < n; k++) coinFx.push({ x0: t.x + rand(-10, 10), y0: t.y + rand(-6, 6), t: -k * .07, dur: .85, tier, spin: rand(0, 6) });
-  else bumpPill();
-  floatText(t.x, t.y - 22, `+${fmt(v)}`, COIN_COL[tier][1]);
-  particles.push({ x: t.x, y: t.y, vy: -30, life: .45, icon: TREASURE[t.type].icon });
-  for (let k = 0; k < 3; k++) particles.push({ x: t.x + rand(-10, 10), y: t.y, vy: -rand(30, 60), life: .8, icon: '✨' });
+  // 同時飛行的金幣最多 COINFX_MAX 顆，超過的直接加錢、數字跳一下就好
+  const room = state.coinFx !== false ? Math.min(n, COINFX_MAX - coinFx.length) : 0;
+  for (let k = 0; k < room; k++) coinFx.push({ x0: t.x + rand(-10, 10), y0: t.y + rand(-6, 6), t: -k * .07, dur: .85, tier, spin: rand(0, 6) });
+  if (room <= 0) bumpPill();
+  // 短時間內在附近連續撿到的寶物，「+金額」合併成一個
+  const near = texts.find(q => q.coinV && q.life > .9 && Math.abs(q.x - t.x) < 120);
+  if (near) { near.coinV += v; near.text = `+${fmt(near.coinV)}`; near.tier = Math.max(near.tier, tier); near.color = COIN_COL[near.tier][1]; }
+  else if (texts.length < 20) { floatText(t.x, t.y - 22, `+${fmt(v)}`, COIN_COL[tier][1]); Object.assign(texts[texts.length - 1], { coinV: v, tier }); }
+  if (particles.length < PARTICLE_MAX) {
+    particles.push({ x: t.x, y: t.y, vy: -30, life: .45, icon: TREASURE[t.type].icon });
+    for (let k = 0; k < 3; k++) particles.push({ x: t.x + rand(-10, 10), y: t.y, vy: -rand(30, 60), life: .8, icon: '✨' });
+  }
 }
 const COIN_COL = [['#a8672f', '#f0b27a'], ['#8f99aa', '#f2f5fa'], ['#d6960f', '#ffe27a']];
 // 八角形的低多邊形金幣，會翻轉
@@ -3154,6 +3161,15 @@ function treasureSprite(icon) {
   emoji(c, icon, 22, 22, 30);
   return TREASURE_CV[icon] = cv;
 }
+// 飄在空中的小圖示（✨💗⭐ 等）也先畫成小圖，每幀直接貼上
+const EMOJI_CV = {};
+function emojiSprite(ch) {
+  if (EMOJI_CV[ch]) return EMOJI_CV[ch];
+  const R = 3, cv = document.createElement('canvas'); cv.width = cv.height = 32 * R;
+  const c = cv.getContext('2d'); c.scale(R, R); emoji(c, ch, 16, 16, 22);
+  return EMOJI_CV[ch] = cv;
+}
+const COINFX_MAX = 40, PARTICLE_MAX = 150;
 // 左上角金幣數字跳一下：最多每 0.3 秒一次，用 Web Animations 播放，不必強制瀏覽器重新排版
 let bumpAt = 0, coinPillEl = null;
 function bumpPill() {
