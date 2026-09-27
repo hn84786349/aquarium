@@ -211,7 +211,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
   <div id="tab"></div>
 </aside>
 <div id="toast"></div>
-<div id="welcome" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="welcomeMsg"></p><div class="big" id="welcomeAmt"></div><div class="row"><button id="welcomeOk" class="on">收下金幣</button></div></div></div>
+<div id="welcome" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="welcomeMsg"></p><div class="big" id="welcomeAmt"></div><p id="welcomeBorn"></p><div class="row"><button id="welcomeOk" class="on">收下金幣</button></div></div></div>
 <div id="saveBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p id="saveTitle"></p><a id="saveLink" class="bigLink" hidden target="_blank" rel="noopener">🔗 直接開啟新網站並帶入進度<small>最簡單，不用複製貼上</small></a><textarea id="saveText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="存檔碼"></textarea><div class="row"><button class="ghost" id="saveCancel">關閉</button><button id="saveOk" class="on">複製</button></div></div></div>
 <div id="photoBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p>📸 拍好了！可以分享給家人，或長按照片儲存。</p><img id="photoImg" alt="水族箱照片"><div class="row"><button class="ghost" id="photoClose">關閉</button><button id="photoShare" class="on">分享</button></div></div></div>
 <div id="nameBox" class="modal" hidden><div class="box" role="dialog" aria-modal="true"><p>✏️ 幫牠取個新名字（最多 8 個字）</p><input id="nameInput" maxlength="8" autocomplete="off"><div class="row"><button class="ghost" id="nameCancel">取消</button><button id="nameOk" class="on">確定</button></div></div></div>
@@ -3387,19 +3387,45 @@ function fmtDur(sec) {
   return h ? `${h} 小時${m ? ` ${m} 分鐘` : ''}` : `${Math.max(1, m)} 分鐘`;
 }
 let offlineShown = false;
+// 離線繁殖：離開期間成魚一樣會繁殖，但每一對最多只生一隻；小魚在離線時不會長大，回來後才開始成長
+function offlineBreed(sec) {
+  const born = [];
+  for (const sp of SPECIES) {
+    const el = state.fish.filter(f => f.sp === sp.id && f.growth >= 1 && f.hunger >= 40), pairs = Math.floor(el.length / 2);
+    if (pairs < 1) continue;
+    const prog = (state.breedT[sp.id] || 0) + sec * Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
+    let n = Math.min(pairs, Math.floor(prog / sp.breedTime), capacity() - state.fish.length);
+    if (n <= 0) { state.breedT[sp.id] = Math.min(prog, sp.breedTime * .99); continue; }
+    state.breedT[sp.id] = prog - n * sp.breedTime >= sp.breedTime ? 0 : Math.max(0, prog - n * sp.breedTime);
+    for (let i = 0; i < n; i++) {
+      const a = el[i * 2], baby = spawnFish(sp.id, a.x + rand(-20, 20), a.y + rand(-15, 15), nurseryGrowth(), 60);
+      if (Math.random() < SHINY_RATE) baby.shiny = Math.random() < .5 ? 'gold' : 'white';
+      dexSee(sp.id, baby.shiny); state.stats.born++; born.push(baby);
+    }
+  }
+  if (born.length) taskProg('breed', born.length);
+  return born;
+}
 function checkOffline() {
   const now = Date.now(), away = state.lastSeen ? (now - state.lastSeen) / 1000 : 0;
   state.lastSeen = now;
   if (away < 60 || offlineShown) return;
   const sec = Math.min(away, offlineMaxH() * 3600), amt = Math.floor(incomePerSec() * sec * OFFLINE_RATE * B.offline);
-  if (amt < 1) return;
+  const born = offlineBreed(sec);
+  if (amt < 1 && !born.length) return;
   offlineShown = true;
-  $('#welcomeMsg').textContent = `歡迎回來！\n你離開了 ${fmtDur(away)}，魚兒們找到的寶物已經換成金幣${away > sec ? `\n（最多只能累積 ${offlineMaxH()} 小時，可以升級「離線收集網」）` : ''}：`;
-  $('#welcomeAmt').textContent = `💰 ${fmt(amt)}`;
+  // 整理出生的小魚：孔雀魚 ×2、✨金色小丑魚 …
+  const cnt = {}; for (const f of born) { const k = (f.shiny ? `✨${SHINY_NAME[f.shiny]}` : '') + SP[f.sp].name; cnt[k] = (cnt[k] || 0) + 1; }
+  const bornTxt = born.length ? `🍼 這段時間生了 ${born.length} 隻小魚：\n${Object.entries(cnt).map(([k, n]) => `${k} ×${n}`).join('、')}` : '';
+  $('#welcomeMsg').textContent = `歡迎回來！\n你離開了 ${fmtDur(away)}${amt >= 1 ? `，魚兒們找到的寶物已經換成金幣${away > sec ? `\n（最多只能累積 ${offlineMaxH()} 小時，可以升級「離線收集網」）` : ''}：` : '。'}`;
+  $('#welcomeBorn').textContent = bornTxt; $('#welcomeBorn').hidden = !born.length;
+  $('#welcomeAmt').textContent = amt >= 1 ? `💰 ${fmt(amt)}` : '';
+  $('#welcomeOk').textContent = amt >= 1 ? '收下金幣' : '好';
   $('#welcome').hidden = false;
   $('#welcomeOk').onclick = () => {
     $('#welcome').hidden = true; offlineShown = false;
-    state.coins += amt; state.earned += amt; toast(`收下了 💰${fmt(amt)}`); save(); Music.start();
+    if (amt >= 1) { state.coins += amt; state.earned += amt; toast(`收下了 💰${fmt(amt)}`); }
+    save(); Music.start();
   };
 }
 
