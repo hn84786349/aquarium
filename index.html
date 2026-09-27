@@ -4043,7 +4043,10 @@ const Music = (() => {
     }
   }
   function start() {
-    if (!wanted || playing) return;
+    if (!wanted) return;
+    // 已經在「播放中」但音訊其實被瀏覽器擋住（重新整理後第一次按下畫面的時機，iPhone 不一定算數）：
+    // 之後每次點畫面都再試著喚醒，直到真的有聲音
+    if (playing) { if (ac && ac.state !== 'running') { ac.resume(); try { unlockEl && unlockEl.play().catch(() => { }); } catch (e) { } } return; }
     if (!ac && !init()) return;
     try { if (!unlockEl) { unlockEl = new Audio(silentWav()); unlockEl.loop = true; } unlockEl.play().catch(() => { }); } catch (e) { }
     ac.resume(); playing = true;
@@ -4063,7 +4066,7 @@ const Music = (() => {
 })();
 $('#musicBtn').onclick = e => { e.stopPropagation(); Music.toggle(); };
 // 瀏覽器規定要先點一下畫面才能播放聲音
-for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, () => Music.start(), { passive: true });
+for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => Music.start(), { passive: true });
 
 load(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
