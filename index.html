@@ -3280,6 +3280,15 @@ function sellFish(id) {
   toast(`賣出 ${f.name}，獲得 💰${fmt(v)}`); if (selFishId === id) selFishId = null;
   updateFishCard(); renderTab();
 }
+// 一次賣掉所有魚（夢幻魚不算）：要確認兩次，避免不小心點到
+async function sellAll() {
+  const n = state.fish.length; if (!n) return;
+  const total = () => state.fish.reduce((a, f) => a + sellPrice(f), 0);
+  if (!await ask(`確定要賣掉水族箱裡全部 ${n} 隻魚嗎？\n可以得到 💰${fmt(total())}`, '要賣掉', '取消')) return;
+  if (!await ask(`再確認一次：全部 ${n} 隻魚賣掉後就回不來了喔！\n真的要全部賣掉嗎？`, '確定全部賣掉', '我再想想')) return;
+  const v = total(), cnt = state.fish.length; state.coins += v; state.fish = []; selFishId = null;
+  toast(`賣出全部 ${cnt} 隻魚，獲得 💰${fmt(v)}`); updateFishCard(); renderTab(); save();
+}
 
 // ====== 側邊面板 ======
 const tabEl = $('#tab');
@@ -3408,6 +3417,7 @@ function renderTab() {
       }
       h += `</div>`;
     }
+    if (state.fish.length) h += `<div class="row" style="margin-top:16px"><button class="ghost" style="flex:1" data-act="sellAll">💰 販賣全部（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</button></div>`;
   } else if (['dex', 'ach', 'daily'].includes(tab)) {
     h += renderCollect();
   } else if (tab === 'settings') {
@@ -3497,6 +3507,7 @@ const ACTIONS = {
   lookScene(arg) { const [id, n] = arg.split(':'), st = state.scene[id]; if (st && +n <= st.lv) { st.look = +n; selPiece = id; sceneT = -1; } },
   viewFish(id) { viewMode = true; updateModeLabel(); selFishId = +id; closeMenu(); updateFishCard(); },
   sellFish(id) { sellFish(+id); },
+  sellAll() { sellAll(); },
   releaseFish(id) { releaseFish(+id); },
   reset() { resetGame(); },
   exportSave() { exportSave(); },
