@@ -3289,6 +3289,18 @@ async function sellAll() {
   const v = total(), cnt = state.fish.length; state.coins += v; state.fish = []; selFishId = null;
   toast(`賣出全部 ${cnt} 隻魚，獲得 💰${fmt(v)}`); updateFishCard(); renderTab(); save();
 }
+// 一次放生所有魚（夢幻魚不算）：一樣要確認兩次
+async function releaseAll() {
+  const n = state.fish.length; if (!n) return;
+  const total = () => state.fish.reduce((a, f) => a + releaseStars(f), 0);
+  if (!await ask(`確定要放生水族箱裡全部 ${n} 隻魚嗎？\n可以得到 ⭐${fmt(total())}`, '要放生', '取消')) return;
+  if (!await ask(`再確認一次：全部 ${n} 隻魚放生後就回不來了喔！\n真的要全部放生嗎？`, '確定全部放生', '我再想想')) return;
+  const st = total(), cnt = state.fish.length;
+  state.stars += st; state.starEarned += st; state.stats.released += cnt; taskProg('release', cnt);
+  for (const f of state.fish) releasing.push({ f, life: 1.6 });
+  state.fish = []; selFishId = null;
+  toast(`🌊 全部 ${cnt} 隻魚回到大海了，獲得 ⭐${fmt(st)}`); updateFishCard(); renderTab(); save();
+}
 
 // ====== 側邊面板 ======
 const tabEl = $('#tab');
@@ -3417,7 +3429,8 @@ function renderTab() {
       }
       h += `</div>`;
     }
-    if (state.fish.length) h += `<div class="row" style="margin-top:16px"><button class="ghost" style="flex:1" data-act="sellAll">💰 販賣全部（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</button></div>`;
+    if (state.fish.length) h += `<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:10px"><button class="ghost" data-act="sellAll">💰 販賣全部（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</button>
+      <button class="ghost" data-act="releaseAll">🌊 放生全部（${state.fish.length} 隻，共 ⭐${fmt(state.fish.reduce((a, f) => a + releaseStars(f), 0))}）</button></div>`;
   } else if (['dex', 'ach', 'daily'].includes(tab)) {
     h += renderCollect();
   } else if (tab === 'settings') {
@@ -3508,6 +3521,7 @@ const ACTIONS = {
   viewFish(id) { viewMode = true; updateModeLabel(); selFishId = +id; closeMenu(); updateFishCard(); },
   sellFish(id) { sellFish(+id); },
   sellAll() { sellAll(); },
+  releaseAll() { releaseAll(); },
   releaseFish(id) { releaseFish(+id); },
   reset() { resetGame(); },
   exportSave() { exportSave(); },
