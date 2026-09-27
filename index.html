@@ -875,7 +875,8 @@ const SCENE_DRAW = { castle: scCastle, arch: scArch, ship: scShip, coral: scCora
 
 // 把造景畫到水族箱：layer 0 在海草後面、layer 1 在海草前面
 // 造景的動畫很慢，先畫在兩張暫存畫布上、每秒更新約 15 次，每一幀只要貼上去，手機比較不會卡
-let selPiece = null, sceneT = -1;
+let selPiece = null, sceneT = -1, sceneFlip = 0;
+const SCENE_TOP = 200; // 造景最高大概到這裡（世界座標），上面不用畫
 const SCENE_CV = [document.createElement('canvas'), document.createElement('canvas')];
 function paintScene(c, layer) {
   for (const p of SCENE) {
@@ -885,15 +886,16 @@ function paintScene(c, layer) {
   }
 }
 function drawScene(layer) {
-  if (layer === 0 && (T - sceneT > .066 || T < sceneT)) {
-    sceneT = T;
-    for (const L of [0, 1]) {
-      const cv = SCENE_CV[L]; if (cv.width !== canvas.width || cv.height !== canvas.height) { cv.width = canvas.width; cv.height = canvas.height; }
-      const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.setTransform(scale, 0, 0, scale, 0, 0);
+  if (layer === 0 && (T - sceneT > .05 || T < sceneT)) {
+    const full = sceneT < 0 || T < sceneT; sceneT = T;
+    for (const L of full ? [0, 1] : [sceneFlip ^= 1]) {
+      const cv = SCENE_CV[L], hh = Math.ceil((H - SCENE_TOP) * scale);
+      if (cv.width !== canvas.width || cv.height !== hh) { cv.width = canvas.width; cv.height = hh; }
+      const g = cv.getContext('2d'); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, cv.width, cv.height); g.setTransform(scale, 0, 0, scale, 0, -SCENE_TOP * scale);
       paintScene(g, L);
     }
   }
-  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(SCENE_CV[layer], 0, 0); ctx.restore();
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(SCENE_CV[layer], 0, Math.round(SCENE_TOP * scale)); ctx.restore();
   const edit = viewMode || (menuOpen && tab === 'decor');
   for (const p of SCENE) {
     if (p.layer !== layer) continue;
@@ -1063,7 +1065,8 @@ function resize() {
   let cw = vw, ch = vw * H / W;
   if (ch > vh) { ch = vh; cw = vh * W / H; }
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // 畫布解析度最多約 230 萬像素：手機維持清晰，大螢幕電腦不會畫太多像素而變卡
+  const dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(2.3e6 / (cw * ch)));
   canvas.width = Math.max(1, Math.round(cw * dpr));
   canvas.height = Math.max(1, Math.round(ch * dpr));
   scale = canvas.width / W;
@@ -3352,7 +3355,11 @@ function drawEventFront() {
 
 // ====== 主迴圈 ======
 let last = performance.now(), hudT = 0, saveT = 0, cloudT = 0, secT = 0, lastCoins = -1, lastFishN = -1, lastStars = -1;
+let lastFrame = 0;
 function frame(now) {
+  // 電腦的高更新率螢幕會每秒呼叫 120～165 次，限制在約 60～80 張，畫面一樣順但負擔少一半
+  if (now - lastFrame < 12) { requestAnimationFrame(frame); return; }
+  lastFrame = now;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   update(dt); render();
   hudT += dt; saveT += dt;
