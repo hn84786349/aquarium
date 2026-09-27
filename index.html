@@ -117,6 +117,8 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 /* 魚店的數量框：往下滑時固定在最上面 */
 .capBox.sticky{position:sticky;top:-8px;z-index:5;box-shadow:0 -6px 0 6px var(--panel),0 6px 12px rgba(0,0,0,.45)}
 .card small.own b{color:var(--accent)}
+.buyCol{display:flex;flex-direction:column;gap:6px;flex:none}
+.buyCol button{white-space:nowrap}
 .card small .relstar{color:#fff27a;white-space:nowrap}
 .card img{width:92px;height:55px;flex:none}
 .ico{font-size:32px;width:46px;text-align:center;flex:none}
@@ -3354,6 +3356,17 @@ $('#topTabs').addEventListener('click', e => { const b = e.target.closest('butto
 $('#tabs2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
 $('#giftBtn').onclick = () => { setTab('daily'); if (!menuOpen) openMenu(); };
 
+// 一次買很多隻：數量受空位和金幣限制，買得起幾隻就買幾隻
+function buyFishN(id, want) {
+  const sp = SP[id], space = capacity() - state.fish.length;
+  if (space <= 0) return toast('水族箱已滿！');
+  const n = Math.min(want, space, Math.floor(state.coins / sp.price));
+  if (n <= 0) return toast('金幣不夠喔！');
+  state.coins -= sp.price * n;
+  for (let i = 0; i < n; i++) { const f = spawnFish(id, rand(100, W - 100), TOP - rand(0, 60), 0.4, 70); f.ty = rand(150, 400); }
+  state.maxTier = Math.max(state.maxTier || 0, sp.tier); dexSee(id); taskProg('buy', n);
+  toast(`買了 ${n} 隻${sp.name}，花費 💰${fmt(sp.price * n)}${n < want && want !== Infinity ? `（${n < space ? '金幣只夠買' : '水族箱只剩空間放'} ${n} 隻）` : ''}`);
+}
 function costBtn(act, arg, cost, label, extra = '', star = false) {
   return `<button data-act="${act}" data-arg="${arg}" data-cost="${cost}" ${star ? 'data-star="1" class="star"' : ''} ${extra}>${label} ${curIcon(star)}${fmt(cost)}</button>`;
 }
@@ -3379,7 +3392,9 @@ function renderTab() {
       h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
         <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻　<span class="relstar">成魚放生 ⭐${sp.stars}</span></small>
         <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
-        ${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}</div>`;
+        <div class="buyCol">${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}
+        <button data-act="buyFish10" data-arg="${sp.id}" data-cost="${sp.price}" data-space="1">購買 10 隻</button>
+        <button data-act="buyFishMax" data-arg="${sp.id}" data-cost="${sp.price}" data-space="1">購買到滿</button></div></div>`;
     }
     if (hidden > 0) h += `<div class="card"><div class="ico">🔒</div><div class="info"><b>還有 ${hidden} 種更稀有的魚</b><small>買到更高級的魚，就會出現新的魚種（越後面越華麗夢幻）</small></div></div>`;
   } else if (tab === 'decor') {
@@ -3501,6 +3516,8 @@ const ACTIONS = {
     state.maxTier = Math.max(state.maxTier || 0, SP[id].tier); dexSee(id); taskProg('buy');
     toast(`買了一隻${SP[id].name}「${f.name}」！`);
   },
+  buyFish10(id) { buyFishN(id, 10); },
+  buyFishMax(id) { buyFishN(id, Infinity); },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
   buyFeeder() { if (state.feederLv < FEEDER_MAX && pay(feederCost(state.feederLv))) { state.feederLv++; toast(`自動餵食器 Lv.${state.feederLv}`); } },
   buySnail() { if (state.snailLv < SNAIL_MAX && pay(snailCost(state.snailLv))) { state.snailLv++; if (state.snailLv === 4) snails[1].x = W * .75; toast(state.snailLv === 4 ? '🐌 撿寶蝸牛 Lv.4，多了一隻蝸牛幫忙！' : `撿寶蝸牛 Lv.${state.snailLv}`); } },
