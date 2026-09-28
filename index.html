@@ -67,6 +67,8 @@ canvas{display:block;touch-action:none;cursor:pointer}
 /* 有禮物可以領時，按鈕右上角出現紅點 */
 #ctrls button.dot{position:relative}
 #ctrls button.dot::after{content:'';position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#ff4d4d;border:2px solid #fff}
+.dex[data-act]{cursor:pointer}
+.dex.shinyView{border-color:#ffd860;box-shadow:0 0 10px rgba(255,216,96,.35)}
 .dexGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}
 .dex{position:relative;background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:6px 4px;text-align:center}
 .dex img{width:100%;height:auto;aspect-ratio:168/100}
@@ -2555,14 +2557,19 @@ function buildPreviews() {
   for (const sp of [...SPECIES, ...STARFISH]) {
     bc.setTransform(1, 0, 0, 1, 0, 0); bc.clearRect(0, 0, 480, 320); bc.translate(260, 160);
     sp.draw(bc, 60, .06, 1);
-    const d = bc.getImageData(0, 0, 480, 320).data;
-    let x0 = 480, y0 = 320, x1 = 0, y1 = 0;
-    for (let y = 0; y < 320; y += 2) for (let x = 0; x < 480; x += 2) if (d[(y * 480 + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    const cv = document.createElement('canvas'); cv.width = 168; cv.height = 100;
-    const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0), k = Math.min(156 / bw, 90 / bh);
-    cv.getContext('2d').drawImage(big, x0, y0, bw, bh, 84 - bw * k / 2, 50 - bh * k / 2, bw * k, bh * k);
-    PREV[sp.id] = cv.toDataURL();
+    PREV[sp.id] = cropPreview(big);
   }
+}
+// 依實際圖案範圍裁切、縮放置中成 168×100 的小圖；glow 有給就在後面加一圈柔光
+function cropPreview(big, glow) {
+  const d = big.getContext('2d').getImageData(0, 0, 480, 320).data;
+  let x0 = 480, y0 = 320, x1 = 0, y1 = 0;
+  for (let y = 0; y < 320; y += 2) for (let x = 0; x < 480; x += 2) if (d[(y * 480 + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const cv = document.createElement('canvas'); cv.width = 168; cv.height = 100; const c = cv.getContext('2d');
+  const bw = Math.max(1, x1 - x0), bh = Math.max(1, y1 - y0), k = Math.min(156 / bw, 90 / bh);
+  if (glow) glowDot(c, 84, 50, 60, glow, .45);
+  c.drawImage(big, x0, y0, bw, bh, 84 - bw * k / 2, 50 - bh * k / 2, bw * k, bh * k);
+  return cv.toDataURL();
 }
 
 // ====== 更新 ======
@@ -2636,28 +2643,33 @@ function updateFish(f, dt) {
   }
 }
 
+// 一次生幾隻：1～3 對生 1 隻、4～5 對 2 隻、6～7 對 3 隻、8～9 對 4 隻、10 對以上 5 隻
+const litterSize = pairs => Math.min(5, Math.max(1, Math.floor(pairs / 2)));
 function updateBreeding(dt) {
   for (const sp of SPECIES) {
     const el = state.fish.filter(f => f.sp === sp.id && f.growth >= 1 && f.hunger >= 40);
     const pairs = Math.floor(el.length / 2);
     if (pairs < 1 || state.fish.length >= capacity()) continue;
-    // 配對越多繁殖越快，但每多一對只加快 15%，最多 2 倍
-    state.breedT[sp.id] = (state.breedT[sp.id] || 0) + dt * Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
+    // 繁殖倒數（跟幾對無關）；時間到依對數一起生：每 2 對生 1 隻，至少 1 隻、最多 5 隻
+    state.breedT[sp.id] = (state.breedT[sp.id] || 0) + dt * B.breed;
     if (state.breedT[sp.id] >= sp.breedTime) {
       state.breedT[sp.id] = 0;
-      const a = pick(el); let b = pick(el); if (b === a) b = el.find(x => x !== a);
-      const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
-      const baby = spawnFish(sp.id, x, y, nurseryGrowth(), 60);
-      for (let i = 0; i < 6; i++) particles.push({ x: x + rand(-20, 20), y: y + rand(-10, 10), vy: -rand(20, 45), life: 1.6, icon: '💗' });
-      floatText(x, y - 25, `${sp.name}寶寶「${baby.name}」誕生了！`, '#ffb3d9');
-      toast(`🎉 ${sp.name}生了小魚！`);
-      // 小機率生出稀有色（金色／白色）的小魚
-      if (Math.random() < SHINY_RATE) {
-        baby.shiny = Math.random() < .5 ? 'gold' : 'white';
-        for (let i = 0; i < 12; i++) particles.push({ x: x + rand(-30, 30), y: y + rand(-20, 20), vy: -rand(20, 60), life: 2, icon: '✨' });
-        setTimeout(() => ask(`✨ 太幸運了！\n生出了稀有的「${SHINY_NAME[baby.shiny]}${sp.name}」！\n\n稀有色的魚寶物價值 3 倍，賣出和放生也是 3 倍。`, '好棒！', null), 400);
+      const n = Math.min(litterSize(pairs), capacity() - state.fish.length), shinies = [];
+      for (let i = 0; i < n; i++) {
+        const a = pick(el); let b = pick(el); if (b === a) b = el.find(x => x !== a);
+        const x = (a.x + b.x) / 2, y = (a.y + b.y) / 2;
+        const baby = spawnFish(sp.id, x, y, nurseryGrowth(), 60);
+        for (let k = 0; k < 6; k++) particles.push({ x: x + rand(-20, 20), y: y + rand(-10, 10), vy: -rand(20, 45), life: 1.6, icon: '💗' });
+        if (n === 1) floatText(x, y - 25, `${sp.name}寶寶「${baby.name}」誕生了！`, '#ffb3d9');
+        // 小機率生出稀有色（金色／白色）的小魚
+        if (Math.random() < SHINY_RATE) {
+          baby.shiny = Math.random() < .5 ? 'gold' : 'white'; shinies.push(baby);
+          for (let k = 0; k < 12; k++) particles.push({ x: x + rand(-30, 30), y: y + rand(-20, 20), vy: -rand(20, 60), life: 2, icon: '✨' });
+        }
+        dexSee(sp.id, baby.shiny); state.stats.born++;
       }
-      dexSee(sp.id, baby.shiny); state.stats.born++; taskProg('breed');
+      toast(n > 1 ? `🎉 ${sp.name}一起生了 ${n} 隻小魚！` : `🎉 ${sp.name}生了小魚！`); taskProg('breed', n);
+      if (shinies.length) setTimeout(() => ask(`✨ 太幸運了！\n生出了稀有的「${shinies.map(b => SHINY_NAME[b.shiny] + sp.name).join('」、「')}」！\n\n稀有色的魚寶物價值 3 倍，賣出和放生也是 3 倍。`, '好棒！', null), 400);
       if (menuOpen && tab === 'mine') renderTab();
     }
   }
@@ -3513,16 +3525,19 @@ function renderTab() {
         ${on ? '<button class="on" disabled>使用中</button>' : own ? `<button data-act="useBg" data-arg="${bg.id}">使用</button>` : bg.starPrice ? costBtn('buyBg', bg.id, bg.starPrice, '兌換', '', true) : costBtn('buyBg', bg.id, bg.price, '購買')}</div>`;
     }
   } else if (tab === 'mine') {
-    h += `<h3>🐠 我的魚（${state.fish.length}/${capacity()}）</h3><p class="hint">累計賺得 💰${fmt(state.earned)}</p>`;
+    h += `<h3>🐠 我的魚（${state.fish.length}/${capacity()}）</h3><p class="hint">累計賺得 💰${fmt(state.earned)}</p>
+      <div class="bonus">💞 <b>繁殖規則</b>：同一種魚有兩隻以上吃飽（飽食度 40% 以上）的成魚，就會開始繁殖倒數；倒數時間跟有幾對無關。<br>
+      時間到大家一起生：<b>1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻</b>（水族箱空位不夠時會少生）。<br>
+      離開遊戲時也會繼續繁殖，但每一對最多生一隻，生出來的小魚要回來餵才會長大。</div>`;
     if (!state.fish.length) h += '<p class="hint">還沒有魚，去魚店買幾隻吧！</p>';
     const full = state.fish.length >= capacity();
     for (const sp of SPECIES) {
       const list = state.fish.filter(f => f.sp === sp.id); if (!list.length) continue;
       const adults = list.filter(f => f.growth >= 1), ready = adults.filter(f => f.hunger >= 40).length;
       const prog = Math.min(1, (state.breedT[sp.id] || 0) / sp.breedTime);
-      const pairs = Math.floor(ready / 2), rate = Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
+      const pairs = Math.floor(ready / 2), rate = B.breed;
       const left = Math.max(1, Math.ceil((sp.breedTime - (state.breedT[sp.id] || 0)) / rate));
-      const status = full ? '水族箱已滿，無法繁殖' : ready >= 2 ? `繁殖中（${pairs} 對）・約 <b>${fmtTime(left)}</b> 後生小魚` : adults.length >= 2 ? '成魚肚子餓，暫停繁殖（餵飽就會繼續）' : '需要兩隻成魚才能繁殖';
+      const status = full ? '水族箱已滿，無法繁殖' : ready >= 2 ? `繁殖中（${pairs} 對）・約 <b>${fmtTime(left)}</b> 後生 <b>${Math.min(litterSize(pairs), capacity() - state.fish.length)}</b> 隻小魚` : adults.length >= 2 ? '成魚肚子餓，暫停繁殖（餵飽就會繼續）' : '需要兩隻成魚才能繁殖';
       h += `<div class="card" style="flex-direction:column;align-items:stretch"><div class="row"><img src="${PREV[sp.id]}" alt="" style="width:60px;height:36px">
         <div class="info"><b>${sp.name} × ${list.length}</b><small>成魚 ${adults.length}・未成年 ${list.length - adults.length}</small></div></div>
         <small style="color:var(--muted)">💞 ${status}</small><div class="bar"><i style="width:${prog * 100}%;background:#ff8fc8"></i></div>`;
@@ -3542,7 +3557,7 @@ function renderTab() {
     h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
     h += `<h4>📱 畫面</h4><div ${col}>${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="toggleCoinFx">🪙 金幣特效（撿寶物時金幣飛到左上角）：<b>${state.coinFx === false ? '關' : '開'}</b></button></div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻吃飽就會繁殖，小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！</div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻以上吃飽（飽食度 40% 以上）就會開始繁殖倒數，時間到大家一起生：1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻（空位不夠時會少生）。倒數時間跟對數無關，城堡等造景和繁殖燈可以縮短。<br>・離線時也會繁殖，但每一對最多生一隻，小魚要回來餵才會長大。小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
@@ -3606,6 +3621,7 @@ const ACTIONS = {
     toast(`買了一隻${SP[id].name}「${f.name}」！`);
   },
   buyFish10(id) { buyFishN(id, 10); },
+  dexFlip(id) { DEX_VIEW[id] = ((DEX_VIEW[id] || 0) + 1) % DEX_KINDS.length; },
   buyFishMax(id) { buyFishN(id, Infinity); },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
   buyFeeder() { if (state.feederLv < FEEDER_MAX && pay(feederCost(state.feederLv))) { state.feederLv++; toast(`自動餵食器 Lv.${state.feederLv}`); } },
@@ -3771,16 +3787,29 @@ function claimGift() {
   updateGiftDot();
 }
 const updateGiftDot = () => $('#giftBtn').classList.toggle('dot', !!state.daily && !state.daily.gift);
+// 圖鑑裡點魚可以切換外觀：一般 → 金色 → 白色 → 一般（不存檔，只是看看）
+const DEX_VIEW = {}, DEX_KINDS = ['', 'gold', 'white'];
 function dexCard(sp) {
-  const seen = state.dex.seen[sp.id], sh = state.dex.shiny[sp.id];
-  return `<div class="dex ${seen ? '' : 'unk'}"><img src="${PREV[sp.id]}" alt=""><b>${seen ? sp.name : '？？？'}</b>${sh ? `<i title="看過稀有色">✨</i>` : ''}</div>`;
+  const seen = state.dex.seen[sp.id], sh = state.dex.shiny[sp.id], canFlip = seen && !sp.star, kind = canFlip ? DEX_KINDS[DEX_VIEW[sp.id] || 0] : '';
+  return `<div class="dex ${seen ? '' : 'unk'} ${kind ? 'shinyView' : ''}" ${canFlip ? `data-act="dexFlip" data-arg="${sp.id}" role="button"` : ''}><img src="${kind ? shinyPrev(sp, kind) : PREV[sp.id]}" alt="">
+    <b>${seen ? (kind ? SHINY_NAME[kind] : '') + sp.name : '？？？'}</b>${sh ? `<i title="看過稀有色">✨</i>` : ''}</div>`;
+}
+// 稀有色的預覽圖：跟一般預覽圖一樣的裁切，再疊上金色／白色（第一次看的時候才畫）
+const PREV_SHINY = {};
+function shinyPrev(sp, kind) {
+  const key = sp.id + ':' + kind; if (PREV_SHINY[key]) return PREV_SHINY[key];
+  const big = document.createElement('canvas'); big.width = 480; big.height = 320;
+  const bc = big.getContext('2d'); bc.translate(260, 160); sp.draw(bc, 60, .06, 1);
+  bc.setTransform(1, 0, 0, 1, 0, 0); bc.globalCompositeOperation = 'source-atop';
+  bc.fillStyle = kind === 'gold' ? 'rgba(255,196,40,0.55)' : 'rgba(255,255,255,0.62)'; bc.fillRect(0, 0, 480, 320);
+  return PREV_SHINY[key] = cropPreview(big, kind === 'gold' ? '#ffd860' : '#e8f4ff');
 }
 function renderCollect() {
   let h = '';
   if (tab === 'dex') {
     const n = Object.keys(state.dex.seen).length, all = ALL_DEX().length, next = DEX_GOALS.find(([g]) => !state.dex.claimed.includes(g));
     h += `<div class="bonus">收集進度：<b>${n} / ${all}</b> 種　${next ? `（收集 ${next[0]} 種可以得到 ⭐${next[1]}）` : '🎉 全部收集完成！'}<div class="bar"><i style="width:${n / all * 100}%;background:var(--accent)"></i></div>
-      ✨ 代表看過這種魚的稀有色（金色或白色），稀有色的小魚偶爾會在繁殖時出生。</div>`;
+      ✨ 代表看過這種魚的稀有色（金色或白色），稀有色的小魚偶爾會在繁殖時出生。<br>👆 點一下收集到的魚，可以切換看金色、白色的稀有外觀，再點一下換回一般外觀。</div>`;
     h += `<h4>🐟 魚（${SPECIES.filter(s => state.dex.seen[s.id]).length}/${SPECIES.length}）</h4><div class="dexGrid">${SPECIES.map(dexCard).join('')}</div>`;
     h += `<h4>🌟 夢幻生物（${STARFISH.filter(s => state.dex.seen[s.id]).length}/${STARFISH.length}）</h4><div class="dexGrid">${STARFISH.map(dexCard).join('')}</div>`;
   } else if (tab === 'ach') {
@@ -4014,10 +4043,11 @@ function offlineBreed(sec) {
   for (const sp of SPECIES) {
     const el = state.fish.filter(f => f.sp === sp.id && f.growth >= 1 && f.hunger >= 40), pairs = Math.floor(el.length / 2);
     if (pairs < 1) continue;
-    const prog = (state.breedT[sp.id] || 0) + sec * Math.min(2, 1 + .15 * (pairs - 1)) * B.breed;
-    let n = Math.min(pairs, Math.floor(prog / sp.breedTime), capacity() - state.fish.length);
+    // 跟線上一樣的倒數與每次生的數量，但離線期間每一對最多只生一隻
+    const prog = (state.breedT[sp.id] || 0) + sec * B.breed, rounds = Math.floor(prog / sp.breedTime);
+    let n = Math.min(pairs, rounds * litterSize(pairs), capacity() - state.fish.length);
     if (n <= 0) { state.breedT[sp.id] = Math.min(prog, sp.breedTime * .99); continue; }
-    state.breedT[sp.id] = prog - n * sp.breedTime >= sp.breedTime ? 0 : Math.max(0, prog - n * sp.breedTime);
+    state.breedT[sp.id] = Math.min(prog - rounds * sp.breedTime, sp.breedTime * .99);
     for (let i = 0; i < n; i++) {
       const a = el[i * 2], baby = spawnFish(sp.id, a.x + rand(-20, 20), a.y + rand(-15, 15), nurseryGrowth(), 60);
       if (Math.random() < SHINY_RATE) baby.shiny = Math.random() < .5 ? 'gold' : 'white';
