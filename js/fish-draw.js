@@ -379,7 +379,6 @@ function drawFish(c, f, t, alpha = 1) {
   c.fillStyle = `rgba(0,0,0,${(.16 - hgt * .1) * alpha})`; ell(c, f.x, FLOOR + 14, s * (1.3 - hgt * .4), s * .18); c.fill();
   c.globalAlpha = alpha;
   if (sp.trail) drawTrail(c, f, s, sp.trail, alpha);
-  if (f.fx) drawFishFx(c, f, s, alpha, 0); // 星星小舖的魚特效
   if (sp.star) {
     const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, s * 2.2); g.addColorStop(0, `rgba(255,245,200,${.22 + .08 * Math.sin(t * 2 + f.phase)})`); g.addColorStop(1, 'rgba(255,245,200,0)');
     c.fillStyle = g; c.fillRect(f.x - s * 2.2, f.y - s * 2.2, s * 4.4, s * 4.4);
@@ -393,7 +392,6 @@ function drawFish(c, f, t, alpha = 1) {
   if (f.hunger <= 0) c.globalAlpha = alpha * .75;
   if (f.shiny) shinyDraw(c, sp, s, w, f); else sp.draw(c, s, w, f.growth < .35 ? 1.35 : 1, f);
   c.restore(); c.globalAlpha = 1;
-  if (f.fx) drawFishFx(c, f, s, alpha, 1);
   if (alpha < 1) return;
   if (sp.star) { if (f.id === selFishId) { c.strokeStyle = '#ffc940'; c.setLineDash([5, 4]); c.lineWidth = 2; ell(c, f.x, f.y, s * 1.8 + 6, s + 10); c.stroke(); c.setLineDash([]); } return; }
   if (f.hunger < 30 || f.id === selFishId) {

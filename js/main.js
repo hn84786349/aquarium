@@ -1,5 +1,5 @@
 // 遊戲啟動（main.js）
-load(); syncStarFish(); calcBonus(); buildPreviews();
+load(); refundFishFx(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 applyBigText(); updatePopDot(); updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);

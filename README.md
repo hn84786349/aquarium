@@ -39,7 +39,7 @@
 | `js/cloud.js` | 存檔保護、雲端存檔、匯出匯入 |
 | `js/ui.js` | 選單與各分頁畫面 |
 | `js/features.js` | 圖鑑、成就、每日任務、拍照、改名、訪客、節日 |
-| `js/star-shop.js` | 星星小舖：限時藥水、魚的特效、蝸牛造型 |
+| `js/star-shop.js` | 星星小舖：限時藥水、蝸牛造型 |
 | `js/loop.js` | 主迴圈與離線收益 |
 | `js/music.js` | 背景音樂 |
 | `js/main.js` | 遊戲啟動 |

@@ -1,4 +1,4 @@
-// 星星小舖（star-shop.js）：限時加成藥水、魚的特效、蝸牛造型
+// 星星小舖（star-shop.js）：限時加成藥水、蝸牛造型
 
 // ====== 限時加成藥水：效果 30 分鐘，重複兌換會延長（最多 3 小時）；離線收益不算藥水 ======
 const POTIONS = {
@@ -30,41 +30,12 @@ function potionTick() {
   if (on.length) pill.textContent = on.map(id => `${POTIONS[id].icon}×${POTIONS[id].mul} ${mmss(potionLeft(id))}`).join('　');
 }
 
-// ====== 魚的特效：兌換一次就可以用在任何一隻魚身上（每隻魚一種） ======
-const FISH_FX = {
-  hearts:   { name: '💗 愛心泡泡', cost: 500,  desc: '身邊冒出小小的愛心' },
-  stardust: { name: '✨ 星塵痕跡', cost: 1000, desc: '游過去留下一串金色星塵' },
-  bubbles:  { name: '🫧 珍珠泡泡', cost: 1500, desc: '冒出閃著虹光的小泡泡' },
-  halo:     { name: '😇 天使光環', cost: 2000, desc: '頭上戴著一圈金色光環' },
-  sparkle:  { name: '🌟 閃耀星光', cost: 3000, desc: '身邊繞著閃閃發亮的星星' },
-  aura:     { name: '🌈 彩虹光暈', cost: 5000, desc: '身後有一圈慢慢變色的光' },
-};
-const fxOwned = () => state.fxOwned || (state.fxOwned = []);
-// 在魚的資訊卡點「特效」按鈕：依序切換已擁有的特效（最後回到「無」）
-function cycleFx(id) {
-  const f = state.fish.find(x => x.id === id); if (!f) return;
-  const list = ['', ...Object.keys(FISH_FX).filter(k => fxOwned().includes(k))], i = list.indexOf(f.fx || '');
-  f.fx = list[(i + 1) % list.length] || undefined; if (!f.fx) delete f.fx;
-  updateFishCard(); save();
-}
-// layer 0：畫在魚身體後面；layer 1：畫在前面
-function drawFishFx(c, f, s, alpha, layer) {
-  const fx = f.fx, ph = f.phase || 0;
-  if (layer === 0) {
-    if (fx === 'stardust') drawTrail(c, f, s, '#ffe8a0', alpha);
-    else if (fx === 'aura') halo(c, f.x, f.y, s * 1.7, hexOf(hsl(Math.round((T * 40 + ph * 50) / 15) * 15 % 360, .85, .72)), .5 * alpha);
-    else if (fx === 'hearts' || fx === 'bubbles') {
-      const sp = fx === 'hearts' ? emojiSprite('💗') : bubbleSpr();
-      for (let i = 0; i < 3; i++) {
-        const q = (T * .45 + i / 3 + ph) % 1, x = f.x - f.face * s * .2 + Math.sin(q * 6 + i * 2) * s * .35, y = f.y - s * .3 - q * s * 2.2, r = s * (fx === 'hearts' ? .18 : .14) * (.6 + q * .6);
-        c.globalAlpha = alpha * (1 - q) * .9; c.drawImage(sp, x - r, y - r, r * 2, r * 2);
-      }
-      c.globalAlpha = alpha;
-    }
-  } else if (fx === 'halo') {
-    const x = f.x + f.face * s * .25, y = f.y - s * .95 + Math.sin(T * 2 + ph) * s * .05;
-    halo(c, x, y, s * .45, '#fff0b0', .5 * alpha); c.strokeStyle = `rgba(255,220,120,${.9 * alpha})`; c.lineWidth = Math.max(1.5, s * .06); ell(c, x, y, s * .32, s * .09); c.stroke();
-  } else if (fx === 'sparkle') { c.save(); c.translate(f.x, f.y); c.globalAlpha = alpha; sparkles(c, s * 1.1, f, '#fffbe0', 5); c.restore(); c.globalAlpha = 1; }
+// ====== 魚的特效（已取消）：之前兌換過的會把星星退還 ======
+const OLD_FX_COST = { hearts: 500, stardust: 1000, bubbles: 1500, halo: 2000, sparkle: 3000, aura: 5000 };
+function refundFishFx() {
+  const own = state.fxOwned || []; delete state.fxOwned; for (const f of state.fish) delete f.fx;
+  const st = own.reduce((a, id) => a + (OLD_FX_COST[id] || 0), 0);
+  if (st) { state.stars += st; setTimeout(() => toast(`✨ 魚的特效已取消，退還 ⭐${fmt(st)}`), 1500); }
 }
 
 // ====== 蝸牛造型：只換外觀 ======
@@ -86,12 +57,6 @@ function renderStarShop() {
     const p = POTIONS[id], left = potionLeft(id);
     h += `<div class="card"><div class="ico">${p.icon}</div><div class="info"><b>${p.name}</b><small>${p.desc}・30 分鐘</small>${left ? `<small style="color:var(--good)">生效中，還剩 ${mmss(left)}</small>` : ''}</div>
       ${left > POTION_MAX - POTION_TIME ? '<button disabled>已達上限</button>' : costBtn('buyPotion', id, potionPrice(id), left ? '延長' : '兌換', '', true)}</div>`;
-  }
-  h += `<h4>✨ 魚的特效</h4><p class="hint">兌換一次就能一直使用。用「🔍 查看」點魚，在魚的資訊卡按「✨ 特效」就能幫牠換上（每隻魚一種）。</p>`;
-  for (const id in FISH_FX) {
-    const x = FISH_FX[id], own = fxOwned().includes(id), n = state.fish.filter(f => f.fx === id).length;
-    h += `<div class="card"><div class="ico">${x.name.split(' ')[0]}</div><div class="info"><b>${x.name.split(' ')[1]}</b><small>${x.desc}</small>${own ? `<small>已擁有${n ? `・${n} 隻魚正在使用` : ''}</small>` : ''}</div>
-      ${own ? '<button disabled>已擁有</button>' : costBtn('buyFx', id, x.cost, '兌換', '', true)}</div>`;
   }
   h += `<h4>🐌 蝸牛造型</h4>${state.snailLv ? '' : '<p class="hint">先在「設備・造景」買撿寶蝸牛，才看得到造型喔。</p>'}`;
   for (const id in SNAIL_SKINS) {
@@ -117,11 +82,9 @@ Object.assign(ACTIONS, {
     (state.potions || (state.potions = {}))[id] = Date.now() + left + POTION_TIME; potionTick(); calcBonus();
     toast(`🧪 ${POTIONS[id].name}：${POTIONS[id].desc}，還有 ${mmss(potionLeft(id))}`);
   },
-  buyFx(id) { if (fxOwned().includes(id) || !pay(FISH_FX[id].cost, true)) return; fxOwned().push(id); toast(`✨ 兌換了「${FISH_FX[id].name}」！用「🔍 查看」點魚就能幫牠換上`); },
   buySkin(id) {
     const own = state.ownedSkins || (state.ownedSkins = []);
     if (own.includes(id) || !pay(SNAIL_SKINS[id].cost, true)) return; own.push(id); ACTIONS.useSkin(id);
   },
   useSkin(id) { state.snailSkin = id; toast(`🐌 蝸牛換成「${SNAIL_SKINS[id].name.split(' ')[1]}」`); },
 });
-$('#fishCard').addEventListener('click', e => { const b = e.target.closest('[data-fx]'); if (b) cycleFx(+b.dataset.fx); });
