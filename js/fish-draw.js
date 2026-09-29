@@ -375,6 +375,7 @@ function drawFish(c, f, t, alpha = 1) {
   const hgt = clamp((FLOOR - f.y) / (FLOOR - TOP), 0, 1);
   c.fillStyle = `rgba(0,0,0,${(.16 - hgt * .1) * alpha})`; ell(c, f.x, FLOOR + 14, s * (1.3 - hgt * .4), s * .18); c.fill();
   c.globalAlpha = alpha;
+  if (sp.trail) drawTrail(c, f, s, sp.trail, alpha);
   if (sp.star) {
     const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, s * 2.2); g.addColorStop(0, `rgba(255,245,200,${.22 + .08 * Math.sin(t * 2 + f.phase)})`); g.addColorStop(1, 'rgba(255,245,200,0)');
     c.fillStyle = g; c.fillRect(f.x - s * 2.2, f.y - s * 2.2, s * 4.4, s * 4.4);

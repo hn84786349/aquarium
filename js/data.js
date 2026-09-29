@@ -26,7 +26,7 @@ const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w
 
 // 用 MODELS 裡的設定畫魚
 function mdl(id) { return (c, s, w, e, f) => drawModel(c, s, w, e, f, MODELS[id]); }
-// 50 種魚（包含海龜、海豚、鯨魚等海洋生物），越後面越華麗夢幻；最後 10 種是體型小巧的夢幻魚；價格、產值、成長、繁殖等數值由 tierStats 自動計算
+// 65 種魚（包含海龜、海豚、鯨魚等海洋生物），越後面越華麗夢幻；第 41 種起是體型小巧的夢幻魚，第 51 種起游過去會留下淡淡的痕跡（trail）；價格、產值、成長、繁殖等數值由 tierStats 自動計算
 const SPECIES = [
   { id: 'guppy',      name: '孔雀魚',       size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
   { id: 'neon',       name: '霓虹燈魚',     size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
@@ -78,6 +78,21 @@ const SPECIES = [
   { id: 'rainbowveil', name: '虹綾鬥魚',    size: 25, desc: '拖著四條顏色流轉的彩綾', draw: mdl('rainbowveil') },
   { id: 'starsprite',  name: '星辰仙子魚',  size: 24, desc: '頭頂光環、一路灑下星塵', draw: mdl('starsprite') },
   { id: 'phoenixfairy', name: '鳳羽仙魚',   size: 26, desc: '金色光暈中搖曳著鳳凰尾羽', draw: mdl('phoenixfairy') },
+  { id: 'dewdrop',      name: '露珠精靈魚', size: 20, trail: '#c8f4ff', desc: '像一顆透明的露珠，閃著淡淡虹光', draw: mdl('dewdrop') },
+  { id: 'moonmoth',     name: '月蛾魚',     size: 21, trail: '#c8f4d8', desc: '背上一對淡綠色的月蛾翅膀', draw: mdl('moonmoth') },
+  { id: 'snowflake',    name: '雪晶鬥魚',   size: 23, trail: '#e0f0ff', desc: '白色長紗上印著雪花', draw: mdl('snowflake') },
+  { id: 'blossomkoi',   name: '花瓣小錦鯉', size: 22, trail: '#ffc8d8', desc: '鰭像花瓣一樣柔軟的迷你錦鯉', draw: mdl('blossomkoi') },
+  { id: 'aurorafin',    name: '極光綾鰭魚', size: 23, trail: '#8af0d8', desc: '身後飄著兩條會變色的極光綾帶', draw: mdl('aurorafin') },
+  { id: 'honeyfairy',   name: '蜜糖仙子魚', size: 20, trail: '#ffe090', desc: '金黃色的小身體，背上有透明小翅膀', draw: mdl('honeyfairy') },
+  { id: 'mermaidfin',   name: '人魚紗魚',   size: 23, trail: '#c8fff0', desc: '拖著像人魚一樣的長尾紗', draw: mdl('mermaidfin') },
+  { id: 'starlitbetta', name: '星紗鬥魚',   size: 23, trail: '#b8c0ff', desc: '深藍長紗上的星星一閃一閃', draw: mdl('starlitbetta') },
+  { id: 'rosequartz',   name: '粉晶魚',     size: 21, trail: '#ffc0e0', desc: '像粉紅水晶一樣的切面身體', draw: mdl('rosequartz') },
+  { id: 'cloudfish',    name: '雲朵棉花魚', size: 21, trail: '#ffffff', desc: '身邊圍著一圈棉花般的小雲朵', draw: mdl('cloudfish') },
+  { id: 'rainbowguppy', name: '霓彩孔雀魚', size: 21, trail: '#e0d0ff', desc: '大扇尾的顏色像彩虹一樣流轉', draw: mdl('rainbowguppy') },
+  { id: 'celestia',     name: '星宿仙鰭魚', size: 23, trail: '#c8b8ff', desc: '身上畫著閃亮的星座', draw: mdl('celestia') },
+  { id: 'sunbird',      name: '旭日鳳尾魚', size: 23, trail: '#ffd090', desc: '像日出一樣的暖色長尾', draw: mdl('sunbird') },
+  { id: 'mermaidangel', name: '珍珠天使魚', size: 24, trail: '#fff0f8', desc: '珍珠白的身體，長鰭像天使的翅膀', draw: mdl('mermaidangel') },
+  { id: 'galaxyangel',  name: '銀河天使魚', size: 25, trail: '#d0b8ff', desc: '身體裡藏著銀河，頭頂有淡金色光環', draw: mdl('galaxyangel') },
 ];
 // 依「平均每次想產出的價值」組出寶物組合：主要兩種相鄰的寶物，再加 6% 機率的更高級寶物
 function makePool(avg) {
@@ -112,7 +127,7 @@ function tierStats(k) {
 SPECIES.forEach((s, k) => Object.assign(s, tierStats(k), { tier: k }));
 const SP = Object.fromEntries(SPECIES.map(s => [s.id, s]));
 
-// 星願夢幻生物：用星星兌換，每種只能有一隻，要依序兌換（不能跳著買），水族箱最多展示 5 隻
+// 星願夢幻生物（26 種）：用星星兌換，每種只能有一隻，要依序兌換（不能跳著買），水族箱最多展示 5 隻
 // income：目標每秒產值（基本值，不含造景與背景加成）；寶物價值倍率 valueMult 另外乘上
 const STARFISH = [
   { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 30,     desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
@@ -138,6 +153,12 @@ const STARFISH = [
   { id: 'unicorn',       name: '獨角夢幻天馬', cost: 25000, size: 32, speed: 40, dropEvery: 19, valueMult: 2.55, income: 1100000000, desc: '彩虹鬃毛、金色獨角的夢幻天馬', draw: drawUnicorn },
   { id: 'nebulamanta',   name: '星雲魔鬼魟',   cost: 36000, size: 42, speed: 44, dropEvery: 20, valueMult: 2.65, income: 2500000000, desc: '翅膀是一片星雲，翼尖拖著極光', draw: drawNebulaManta },
   { id: 'rainbowdragon', name: '七彩神龍',     cost: 52000, size: 32, speed: 56, dropEvery: 20, valueMult: 2.8,  income: 5500000000, desc: '全身流動著七彩光芒的傳說神龍', draw: drawRainbowDragon },
+  // 第 22～26 隻：配合第 51～65 種魚的進度，星星需求一樣每階約 ×1.45；游過去會留下淡淡的痕跡
+  { id: 'lunajelly',     name: '月光琉璃水母', cost: 75000,  size: 38, speed: 26, dropEvery: 20, valueMult: 2.9,  income: 22000000000,   trail: '#e8f0ff', desc: '銀白的傘蓋裡藏著一彎月亮', draw: drawLunaJelly },
+  { id: 'phoenixlord',   name: '不死鳥',       cost: 110000, size: 30, speed: 55, dropEvery: 20, valueMult: 3.0,  income: 90000000000,   trail: '#ffc070', desc: '拖著四條金紅尾羽的浴火神鳥', draw: drawPhoenixLord },
+  { id: 'skywhale',      name: '天空之鯨',     cost: 160000, size: 40, speed: 34, dropEvery: 21, valueMult: 3.1,  income: 360000000000,  trail: '#ffffff', desc: '身邊飄著小雲朵、尾巴拖著淡淡彩虹', draw: drawSkyWhale },
+  { id: 'crystaldragon', name: '水晶神龍',     cost: 235000, size: 32, speed: 54, dropEvery: 21, valueMult: 3.2,  income: 1500000000000, trail: '#e0d8ff', desc: '粉彩水晶鱗片，捧著一顆稜鏡龍珠', draw: drawCrystalDragon },
+  { id: 'goddessfish',   name: '海之女神',     cost: 340000, size: 34, speed: 40, dropEvery: 22, valueMult: 3.4,  income: 6000000000000, trail: '#fff0d8', desc: '披著層層羽衣、戴著金冠的海洋女神', draw: drawGoddessFish },
 ];
 STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); s.mult = s.income * s.dropEvery / avgTreasure(s.pool); s.star = true; });
 const SSP = Object.fromEntries(STARFISH.map(s => [s.id, s]));

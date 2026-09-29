@@ -10,6 +10,7 @@ function swimStep(f, dt) { const spd = Math.hypot(f.vx, f.vy); f.swim = ((f.swim
 function updateStarFish(f, dt) {
   swimStep(f, dt);
   const sp = SSP[f.sp];
+  if (sp.trail) trailStep(f, dt, fishScale(f));
   f.wanderT -= dt;
   if (f.wanderT <= 0 || Math.hypot(f.tx - f.x, f.ty - f.y) < 15) { f.tx = rand(60, W - 60); f.ty = rand(TOP + 20, FLOOR - 40); f.wanderT = rand(4, 9); }
   const dx = f.tx - f.x, dy = f.ty - f.y, d = Math.hypot(dx, dy) || 1, k = Math.min(1, dt * 1.8);
@@ -42,6 +43,7 @@ function petFish(f) {
 function updateFish(f, dt) {
   swimStep(f, dt); if (f.spinT > 0) f.spinT = Math.max(0, f.spinT - dt);
   const sp = SP[f.sp], s = fishScale(f);
+  if (sp.trail) trailStep(f, dt, s);
   f.hunger = Math.max(0, f.hunger - sp.hungerRate * B.hunger * dt);
   let speed = sp.speed * (f.growth < .35 ? 1.15 : 1), target = null;
   if (f.hunger < 85 && pellets.length) { target = nearestPellet(f); }
