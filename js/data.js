@@ -1,0 +1,178 @@
+// 遊戲資料：寶物、魚種、夢幻魚、飼料、背景（data.js）
+// ====== 遊戲資料 ======
+const TREASURE = {
+  bubble:  { icon: '🫧', name: '泡泡珠',   value: 2 },
+  coin:    { icon: '🔹', name: '海玻璃',   value: 5 },
+  shell:   { icon: '🐚', name: '貝殼',     value: 12 },
+  pearl:   { icon: '🦪', name: '珍珠貝',   value: 30 },
+  crystal: { icon: '🔮', name: '水晶球',   value: 75 },
+  crown:   { icon: '👑', name: '皇冠',     value: 200 },
+  diamond: { icon: '💎', name: '鑽石',     value: 500 },
+  vase:    { icon: '🏺', name: '古董花瓶', value: 1200 },
+  gold:    { icon: '💍', name: '寶石戒指', value: 3000 },
+  relic:   { icon: '🏆', name: '傳說寶杯', value: 8000 },
+  key:     { icon: '🗝️', name: '黃金鑰匙', value: 20000 },
+  trident: { icon: '🔱', name: '海神三叉戟', value: 60000 },
+  orb:     { icon: '🔮', name: '龍宮寶珠', value: 150000 },
+  starstone: { icon: '🌟', name: '星辰寶石', value: 400000 },
+  heart:   { icon: '💖', name: '海洋之心', value: 1000000 },
+  // 節日寶物（價值依掉落的魚另外計算）
+  redpacket: { icon: '🧧', name: '紅包', value: 1 },
+  mooncake:  { icon: '🥮', name: '月餅', value: 1 },
+  bouquet:   { icon: '💐', name: '花束', value: 1 },
+  xmasgift:  { icon: '🎁', name: '聖誕禮物', value: 1 },
+};
+const avgTreasure = pool => pool.reduce((a, [t, w]) => a + TREASURE[t].value * w, 0) / pool.reduce((a, p) => a + p[1], 0);
+
+// 用 MODELS 裡的設定畫魚
+function mdl(id) { return (c, s, w, e, f) => drawModel(c, s, w, e, f, MODELS[id]); }
+// 50 種魚（包含海龜、海豚、鯨魚等海洋生物），越後面越華麗夢幻；最後 10 種是體型小巧的夢幻魚；價格、產值、成長、繁殖等數值由 tierStats 自動計算
+const SPECIES = [
+  { id: 'guppy',      name: '孔雀魚',       size: 20, desc: '入門好養，繁殖快速', draw: drawGuppy },
+  { id: 'neon',       name: '霓虹燈魚',     size: 18, desc: '身上的藍光閃閃發亮', draw: drawNeon },
+  { id: 'goldfish',   name: '琉金',         size: 22, desc: '圓滾滾的身體配上飄逸大尾巴', draw: mdl('goldfish') },
+  { id: 'clown',      name: '小丑魚',       size: 24, desc: '活潑可愛的人氣王', draw: drawClown },
+  { id: 'puffer',     name: '河豚',         size: 20, desc: '緊張時會鼓成一顆刺刺球', draw: mdl('puffer') },
+  { id: 'blueclown',  name: '藍色小丑魚',   size: 24, desc: '少見的藍色小丑魚', draw: draw_blueclown },
+  { id: 'jewel',      name: '寶石魔',       size: 22, desc: '深藍身上撒滿亮藍色寶石', draw: draw_jewel },
+  { id: 'boxfish',    name: '黃金箱魨',     size: 19, desc: '方方正正的黃色小盒子', draw: mdl('boxfish') },
+  { id: 'dottyback',  name: '蘭花擬雀鯛',   size: 22, desc: '像蘭花一樣的粉紫色', draw: draw_dottyback },
+  { id: 'butterfly',  name: '月眉蝶',       size: 22, desc: '戴著黑色眼罩的黃色蝴蝶魚', draw: mdl('butterfly') },
+  { id: 'snowclown',  name: '雪花小丑魚',   size: 25, desc: '條紋像雪花一樣不規則', draw: draw_snowclown },
+  { id: 'clowntang',  name: '紋刺尾魚',     size: 26, desc: '黃色身體配上藍色條紋', draw: draw_clowntang },
+  { id: 'seahorse',   name: '海馬',         size: 24, desc: '直立著慢慢游的海中小馬', draw: drawSeahorse },
+  { id: 'angel',      name: '神仙魚',       size: 28, desc: '優雅的長鰭貴族', draw: drawAngel },
+  { id: 'mandarin',   name: '青蛙魚',       size: 21, desc: '全身布滿迷幻的彩色花紋', draw: mdl('mandarin') },
+  { id: 'peppermint', name: '紅薄荷神仙魚', size: 24, desc: '紅白條紋像薄荷糖', draw: draw_peppermint },
+  { id: 'emperor',    name: '皇帝神仙魚',   size: 28, desc: '藍底黃線，神仙魚中的皇帝', draw: mdl('emperor') },
+  { id: 'bluetang',   name: '藍倒吊',       size: 28, desc: '寶藍色身體、黃色尾巴', draw: draw_bluetang },
+  { id: 'lionfish',   name: '獅子魚',       size: 28, desc: '張開華麗的羽毛狀魚鰭', draw: mdl('lionfish') },
+  { id: 'betta',      name: '鬥魚',         size: 26, desc: '華麗飄逸的大尾巴', draw: drawBetta },
+  { id: 'turtle',     name: '海龜',         size: 34, desc: '慢慢划水的長壽象徵', draw: drawTurtle },
+  { id: 'parrot',     name: '鸚哥魚',       size: 30, desc: '額頭圓鼓鼓的溫和大魚', draw: draw_parrot },
+  { id: 'grouper',    name: '豹石斑',       size: 30, desc: '白底黑點像小豹子', draw: draw_grouper },
+  { id: 'sunfish',    name: '翻車魚',       size: 32, desc: '圓圓扁扁、呆萌的大魚', draw: mdl('sunfish') },
+  { id: 'moorish',    name: '鐮魚',         size: 30, desc: '拖著長長的背鰭絲', draw: draw_moorish },
+  { id: 'french',     name: '法國神仙魚',   size: 30, desc: '黑色身體鑲著金邊', draw: draw_french },
+  { id: 'seaangel',   name: '海天使',       size: 32, desc: '透明身體裡有一顆發光的心', draw: drawSeaAngel },
+  { id: 'queen',      name: '紫后神仙魚',   size: 30, desc: '紫色漸層到橘色的女王', draw: draw_queen },
+  { id: 'dolphin',    name: '海豚',         size: 34, desc: '聰明又愛笑的海洋精靈', draw: mdl('dolphin') },
+  { id: 'arowana',    name: '金龍魚',       size: 34, desc: '招財納福的風水魚', draw: drawArowana },
+  { id: 'sailfish',   name: '旗魚',         size: 32, desc: '背上揚起一面藍色大帆', draw: mdl('sailfish') },
+  { id: 'mahi',       name: '鬼頭刀',       size: 32, desc: '大海裡閃耀的綠金色', draw: draw_mahi },
+  { id: 'koi',        name: '錦鯉',         size: 34, desc: '帶來好運的傳說之魚', draw: drawKoi },
+  { id: 'orca',       name: '虎鯨',         size: 38, desc: '黑白分明的海洋霸主', draw: mdl('orca') },
+  { id: 'whaleshark', name: '鯨鯊',         size: 40, desc: '溫柔的巨人，身上滿是星點', draw: mdl('whaleshark') },
+  { id: 'oarfish',    name: '皇帶魚',       size: 30, desc: '傳說中的銀色海龍', draw: drawOarfish },
+  { id: 'humpback',   name: '座頭鯨',       size: 40, desc: '會唱歌的大鯨魚', draw: mdl('humpback') },
+  { id: 'fairybetta', name: '仙羽鬥魚',     size: 32, desc: '如仙女羽衣般的夢幻長鰭', draw: mdl('fairybetta') },
+  { id: 'narwhal',    name: '星光獨角鯨',   size: 38, desc: '頭上閃耀著星光長角', draw: mdl('narwhal') },
+  { id: 'aurorawhale', name: '極光鯨',      size: 42, desc: '身上流動著極光的神話之鯨', draw: mdl('aurorawhale') },
+  { id: 'sakurabetta', name: '櫻吹雪鬥魚',  size: 24, desc: '游過的地方飄著櫻花花瓣', draw: mdl('sakurabetta') },
+  { id: 'lunarguppy',  name: '月華孔雀魚',  size: 22, desc: '大尾巴上閃著一串月光', draw: mdl('lunarguppy') },
+  { id: 'opalangel',   name: '蛋白石神仙魚', size: 25, desc: '像蛋白石一樣泛著柔和的虹彩', draw: mdl('opalangel') },
+  { id: 'papillon',    name: '蝶翼仙魚',    size: 23, desc: '背上長著會拍動的蝴蝶翅膀', draw: mdl('papillon') },
+  { id: 'glasssprite', name: '琉璃精靈魚',  size: 23, desc: '透明身體裡有一顆變色的光', draw: mdl('glasssprite') },
+  { id: 'lanternfish', name: '星燈魚',      size: 23, desc: '提著小燈、身上一排星光', draw: mdl('lanternfish') },
+  { id: 'peacockfish', name: '孔雀仙鰭魚',  size: 24, desc: '尾巴像孔雀開屏一樣華麗', draw: mdl('peacockfish') },
+  { id: 'rainbowveil', name: '虹綾鬥魚',    size: 25, desc: '拖著四條顏色流轉的彩綾', draw: mdl('rainbowveil') },
+  { id: 'starsprite',  name: '星辰仙子魚',  size: 24, desc: '頭頂光環、一路灑下星塵', draw: mdl('starsprite') },
+  { id: 'phoenixfairy', name: '鳳羽仙魚',   size: 26, desc: '金色光暈中搖曳著鳳凰尾羽', draw: mdl('phoenixfairy') },
+];
+// 依「平均每次想產出的價值」組出寶物組合：主要兩種相鄰的寶物，再加 6% 機率的更高級寶物
+function makePool(avg) {
+  const TV = ['bubble', 'coin', 'shell', 'pearl', 'crystal', 'crown', 'diamond', 'vase', 'gold', 'relic', 'key', 'trident', 'orb', 'starstone', 'heart'];
+  let i = 0; while (i < TV.length - 2 && TREASURE[TV[i + 1]].value < avg) i++;
+  const lo = TREASURE[TV[i]].value, hi = TREASURE[TV[i + 1]].value, wHi = clamp(Math.round((avg - lo) / (hi - lo) * 94), 5, 88);
+  const pool = [[TV[i], 94 - wHi], [TV[i + 1], wHi]];
+  if (i + 2 < TV.length) pool.push([TV[i + 2], 6]); else pool[1][1] += 6;
+  return pool;
+}
+// 價格取兩位有效數字，看起來比較整齊
+const nice = n => { const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; };
+// 每一階：產值每階成長 ×1.38（前期）→ ×1.7（後期），回本時間從 1.5 分鐘慢慢拉長到約 60 小時；
+// 越後面的魚產值跳得越多，買到第一隻後，第二隻會比較快買到
+// 模擬結果：前期每 1～2 分鐘就能買下一種，中期約 10～30 分鐘，最後幾種約 4～6 小時（實際遊玩約一兩天）
+// 第 41～50 種：接在原本 40 種後面，原本 40 種的數值完全不變；產值每階 ×1.6，回本時間每階再慢 5%
+const BASE_TIERS = 40;
+function tierStats(k) {
+  const n = BASE_TIERS - 1, q = Math.min(1, k / n), x = Math.max(0, k - n);
+  let income = .33; for (let i = 1; i <= k; i++) income *= i <= n ? 1.38 + .32 * (i / n) ** 2 : 1.6;
+  const price = k ? nice(income * 90 * Math.pow(216000 / 90, Math.pow(q, 1.3)) * Math.pow(1.05, x)) : 20;
+  const dropEvery = Math.round(8 + 9 * q), avg = income * dropEvery, pool = makePool(avg);
+  return {
+    price, income, dropEvery, pool, mult: avg / avgTreasure(pool),
+    // 放生得到的星星：跟價格掛鉤（孔雀魚 1 顆，第 40 種約 430 顆，最貴的魚約 1600 顆）
+    stars: Math.max(1, Math.round(Math.pow(price / 20, .256))), speed: Math.round(70 - 25 * q),
+    hungerRate: +(.55 + .4 * q).toFixed(2), growTime: Math.round(60 * Math.pow(10, q) / 10) * 10 + x * 30,
+    // 繁殖時間：3 分鐘 → 最高級約 6 小時
+    breedTime: Math.round(180 * Math.pow(120, q) / 10) * 10,
+  };
+}
+SPECIES.forEach((s, k) => Object.assign(s, tierStats(k), { tier: k }));
+const SP = Object.fromEntries(SPECIES.map(s => [s.id, s]));
+
+// 星願夢幻生物：用星星兌換，每種只能有一隻，要依序兌換（不能跳著買），水族箱最多展示 5 隻
+// income：目標每秒產值（基本值，不含造景與背景加成）；寶物價值倍率 valueMult 另外乘上
+const STARFISH = [
+  { id: 'phoenix', name: '火鳳凰魚', cost: 30,   size: 26, speed: 65, dropEvery: 11, valueMult: 1.3,  income: 30,     desc: '尾巴像火焰一樣燃燒', draw: drawPhoenix },
+  { id: 'rainbow', name: '彩虹天使', cost: 60,   size: 26, speed: 55, dropEvery: 12, valueMult: 1.35, income: 120,    desc: '身上的顏色不停流轉', draw: drawRainbow },
+  { id: 'crystal', name: '水晶魚',   cost: 100,  size: 26, speed: 50, dropEvery: 12, valueMult: 1.4,  income: 400,    desc: '透明閃耀的晶體身軀', draw: drawCrystal },
+  { id: 'leafy',   name: '葉形海龍', cost: 150,  size: 34, speed: 35, dropEvery: 13, valueMult: 1.45, income: 1200,   desc: '身上長滿隨水搖曳的葉子', draw: drawLeafy },
+  { id: 'galaxy',  name: '星河魚',   cost: 220,  size: 28, speed: 50, dropEvery: 13, valueMult: 1.45, income: 4000,   desc: '身體裡藏著一整片星空', draw: drawGalaxy },
+  { id: 'jelly',   name: '夜光水母', cost: 300,  size: 36, speed: 28, dropEvery: 14, valueMult: 1.5,  income: 12000,  desc: '一縮一放、發出柔和的光', draw: drawJelly },
+  { id: 'dragon',  name: '青龍',     cost: 420,  size: 26, speed: 60, dropEvery: 14, valueMult: 1.55, income: 35000,  desc: '傳說中守護海洋的神龍', draw: drawDragon },
+  { id: 'manta',   name: '鬼蝠魟',   cost: 560,  size: 38, speed: 45, dropEvery: 15, valueMult: 1.6,  income: 100000, desc: '張開大翅膀在水中飛翔', draw: drawManta },
+  { id: 'moon',    name: '月光錦鯉', cost: 750,  size: 32, speed: 40, dropEvery: 15, valueMult: 1.65, income: 300000, desc: '在月光下誕生的夢幻之魚', draw: drawMoon },
+  { id: 'beluga',  name: '小白鯨',   cost: 1000, size: 40, speed: 38, dropEvery: 16, valueMult: 1.75, income: 800000, desc: '總是笑咪咪的海中天使', draw: drawBeluga },
+  // 更高級的夢幻生物：星星需求更高，外觀更華麗
+  { id: 'pegasus',      name: '天馬海馬', cost: 1400, size: 30, speed: 40, dropEvery: 16, valueMult: 1.8,  income: 1800000,   desc: '長著羽毛翅膀的純白海馬', draw: drawPegasus },
+  { id: 'lotus',        name: '蓮花水母', cost: 2000, size: 38, speed: 26, dropEvery: 16, valueMult: 1.85, income: 4000000,   desc: '像一朵發光的蓮花在水中綻放', draw: drawLotusJelly },
+  { id: 'starmanta',    name: '星空魟',   cost: 2800, size: 40, speed: 44, dropEvery: 17, valueMult: 1.9,  income: 9000000,   desc: '翅膀上閃爍著整片星空', draw: drawStarManta },
+  { id: 'icedragon',    name: '冰晶龍',   cost: 4000, size: 28, speed: 58, dropEvery: 17, valueMult: 2.0,  income: 20000000,  desc: '冰晶鱗片、拖著極光鬃毛的神龍', draw: drawIceDragon },
+  { id: 'rainbowwhale', name: '彩虹鯨',   cost: 5500, size: 42, speed: 36, dropEvery: 18, valueMult: 2.1,  income: 45000000,  desc: '游過的地方都會留下彩虹', draw: drawRainbowWhale },
+  { id: 'dragonking',   name: '海神龍王', cost: 8000, size: 30, speed: 55, dropEvery: 18, valueMult: 2.25, income: 100000000, desc: '守護整片海洋、捧著龍珠的王者', draw: drawDragonKing },
+  // 最頂級的五種：星星需求每階約 ×1.45，外觀最華麗
+  { id: 'skykoi',        name: '天河錦鯉',     cost: 12000, size: 34, speed: 42, dropEvery: 18, valueMult: 2.35, income: 220000000,  desc: '拖著天河彩帶、灑下一路星塵', draw: drawSkyKoi },
+  { id: 'prismjelly',    name: '七彩琉璃水母', cost: 17500, size: 40, speed: 26, dropEvery: 19, valueMult: 2.45, income: 500000000,  desc: '傘蓋的顏色像彩虹一樣流轉', draw: drawPrismJelly },
+  { id: 'unicorn',       name: '獨角夢幻天馬', cost: 25000, size: 32, speed: 40, dropEvery: 19, valueMult: 2.55, income: 1100000000, desc: '彩虹鬃毛、金色獨角的夢幻天馬', draw: drawUnicorn },
+  { id: 'nebulamanta',   name: '星雲魔鬼魟',   cost: 36000, size: 42, speed: 44, dropEvery: 20, valueMult: 2.65, income: 2500000000, desc: '翅膀是一片星雲，翼尖拖著極光', draw: drawNebulaManta },
+  { id: 'rainbowdragon', name: '七彩神龍',     cost: 52000, size: 32, speed: 56, dropEvery: 20, valueMult: 2.8,  income: 5500000000, desc: '全身流動著七彩光芒的傳說神龍', draw: drawRainbowDragon },
+];
+STARFISH.forEach(s => { s.pool = makePool(s.income * s.dropEvery / s.valueMult); s.mult = s.income * s.dropEvery / avgTreasure(s.pool); s.star = true; });
+const SSP = Object.fromEntries(STARFISH.map(s => [s.id, s]));
+const getSp = id => SP[id] || SSP[id];
+const MAX_SHOWN = 5;
+// 夢幻魚要依序兌換：第一隻隨時可以買，之後要先擁有前一隻
+const starUnlocked = i => i <= 0 || state.starOwned.includes(STARFISH[i - 1].id);
+
+const FOODS = [
+  { id: 'basic',   name: '普通飼料',   icon: '🟤', cost: 1,  sat: 15, grow: 1,   color: '#9a6a3a', r: 4.5 },
+  { id: 'quality', name: '營養顆粒',   icon: '🟢', cost: 4,  sat: 30, grow: 1.5, color: '#45c46a', r: 5 },
+  { id: 'premium', name: '高級蝦乾',   icon: '🦐', cost: 12, sat: 50, grow: 2.2, color: '#ff7a45', r: 5.5 },
+  { id: 'deluxe',  name: '頂級魚子醬', icon: '⚫', cost: 35, sat: 85, grow: 3,   color: '#2a2440', r: 6.5 },
+];
+const FD = Object.fromEntries(FOODS.map(f => [f.id, f]));
+
+// 10 種金幣背景（由便宜到貴，越貴寶物價值加成越高；價格配合魚的進度拉長）＋ 7 種星星背景（越貴越夢幻）
+const BGS = [
+  { id: 'fresh',   name: '清澈淡水',   price: 0,       bonus: 0,    top: '#8ee3ff', bot: '#1a6fa8', sand: ['#f1dfae', '#d9bf82'], ray: .10 },
+  { id: 'reef',    name: '熱帶珊瑚礁', price: 1000,     bonus: 0.05, top: '#5ff0e0', bot: '#0a7a9a', sand: ['#ffd9c9', '#e9ad92'], ray: .12 },
+  { id: 'kelp',    name: '巨藻森林',   price: 8000,    bonus: 0.08, top: '#7ad8b4', bot: '#0c4a44', sand: ['#d2c48e', '#9c8f5c'], ray: .13 },
+  { id: 'sunset',  name: '夕陽海灣',   price: 50000,    bonus: 0.12, top: '#ffb070', bot: '#4a2372', sand: ['#e7b98a', '#b98a5f'], ray: .09 },
+  { id: 'sakura',  name: '櫻花海灣',   price: 300000,   bonus: 0.16, top: '#ffcade', bot: '#6a3a7c', sand: ['#ffe6ee', '#e8b6c8'], ray: .1 },
+  { id: 'deep',    name: '深海秘境',   price: 2000000,   bonus: 0.20, top: '#123a6b', bot: '#02070f', sand: ['#3a4658', '#222b38'], ray: .03 },
+  { id: 'arctic',  name: '冰洋極光',   price: 15000000,   bonus: 0.25, top: '#d8f4ff', bot: '#1f5f8e', sand: ['#f4f8fc', '#c6d4e2'], ray: .1 },
+  { id: 'jelly',   name: '夜光水母',   price: 100000000,  bonus: 0.30, top: '#2a1a5e', bot: '#07031a', sand: ['#40306a', '#261a44'], ray: .02 },
+  { id: 'volcano', name: '海底火山',   price: 800000000,  bonus: 0.36, top: '#4e1c18', bot: '#120404', sand: ['#3c2c28', '#1e1412'], ray: .02 },
+  { id: 'palace',  name: '龍宮寶殿',   price: 6000000000, bonus: 0.45, top: '#8a2436', bot: '#1c0612', sand: ['#e9c46a', '#b8892f'], ray: .08 },
+  { id: 'galaxy', name: '星河幻境',   starPrice: 80, bonus: 0.35, top: '#1b0b3a', bot: '#050214', sand: ['#4a3a80', '#1d1540'], ray: 0 },
+  { id: 'bubblepink',  name: '粉紅泡泡海', starPrice: 250,   bonus: 0.38, top: '#ffc8e6', bot: '#7a4aa8', sand: ['#ffe4f0', '#e8b8d8'], ray: .1 },
+  { id: 'moonsea',     name: '月光海',     starPrice: 600,   bonus: 0.42, top: '#27367a', bot: '#070b26', sand: ['#8a94c0', '#4a5282'], ray: .06 },
+  { id: 'lantern',     name: '天燈祈願海', starPrice: 1500,  bonus: 0.46, top: '#43205e', bot: '#140a26', sand: ['#6a4a5a', '#3a2838'], ray: .03 },
+  { id: 'lotuspond',   name: '蓮花仙池',   starPrice: 3500,  bonus: 0.50, top: '#c8f4e8', bot: '#1e6a78', sand: ['#f0ecd0', '#c8c49a'], ray: .14 },
+  { id: 'crystalhall', name: '水晶宮殿',   starPrice: 7000,  bonus: 0.55, top: '#c8ecff', bot: '#28307a', sand: ['#e8f0ff', '#aab8e8'], ray: .1 },
+  { id: 'heaven',      name: '彩虹天堂',   starPrice: 15000, bonus: 0.60, top: '#fff4fb', bot: '#7a9ae8', sand: ['#fff8e8', '#f0d8b8'], ray: .16 },
+];
+const BG = Object.fromEntries(BGS.map(b => [b.id, b]));
+
