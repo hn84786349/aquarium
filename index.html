@@ -58,6 +58,13 @@ canvas{display:block;touch-action:none;cursor:pointer}
 #topTabs{flex:1 1 auto;min-width:0;display:flex;gap:5px;border:0}
 #topTabs button{flex:1 1 0;min-width:0;border-radius:10px;background:transparent;border:1px solid var(--border);font-size:16px;font-weight:700;padding:6px 4px;white-space:nowrap;overflow:hidden;text-overflow:clip}
 #menuClose{flex:none;min-width:44px;font-size:18px;font-weight:700}
+/* 大字模式：選單、彈出視窗、魚的資訊卡都放大（zoom 會連排版一起放大） */
+body.big #menu{width:min(560px,100vw)}
+body.big #menu > *{zoom:1.22}
+body.big .modal > *{zoom:1.2}
+body.big #fishCard,body.big #foodPop{zoom:1.2}
+body.big #toast{font-size:20px}
+body.big .pill{font-size:19px}
 /* 選單裡也看得到目前的金幣和星星（手機上左上角的數字會被選單擋住或變暗） */
 #wallet{display:flex;gap:18px;justify-content:flex-end;padding:3px 14px;font-size:16px;border-bottom:1px solid var(--border);font-variant-numeric:tabular-nums;white-space:nowrap}
 #wallet b{color:var(--accent)}
@@ -194,6 +201,7 @@ select{font:inherit;font-size:15px;background:var(--panel);color:var(--text);bor
     <button id="modeFeed" class="on" aria-haspopup="true" aria-expanded="false">🍤 餵食</button>
     <button id="photoBtn" title="拍照" aria-label="拍照">📸</button>
     <button id="giftBtn" title="每日禮物" aria-label="每日禮物">🎁</button>
+    <button id="popBtn" title="戳泡泡小遊戲" aria-label="戳泡泡小遊戲">🫧</button>
     <button id="musicBtn" title="背景音樂" aria-label="背景音樂">🎵</button>
     <button id="menuBtn" aria-haspopup="dialog">☰ 選單</button>
   </div>
@@ -2536,6 +2544,7 @@ function drawFish(c, f, t, alpha = 1) {
   const w = Math.sin(f.swim ?? (t * 5 + f.phase)) * (0.12 + Math.min(.15, spd / 600));
   c.save(); c.translate(f.x, f.y); c.scale(f.face, 1);
   c.rotate(clamp(Math.atan2(f.vy, Math.abs(f.vx) + 20), -.45, .45));
+  if (f.spinT > 0) { const q = 1 - f.spinT / .8; c.rotate(q * Math.PI * 2); c.scale(1 + Math.sin(q * Math.PI) * .15, 1 + Math.sin(q * Math.PI) * .15); } // 被摸的時候開心轉一圈
   if (f.hunger <= 0) c.globalAlpha = alpha * .75;
   if (f.shiny) shinyDraw(c, sp, s, w, f); else sp.draw(c, s, w, f.growth < .35 ? 1.35 : 1, f);
   c.restore(); c.globalAlpha = 1;
@@ -2602,13 +2611,25 @@ function syncStarFish() {
     hunger: 100, growth: 1, foodMult: 1, dropT: SSP[id].dropEvery * rand(.3, .8), face: 1, phase: rand(0, 6.28), wanderT: 0,
   });
 }
+// ---- 摸摸魚與親密度（0～100，每 20 點一顆心，最多 5 顆心） ----
+const hearts = f => Math.min(5, Math.floor((f.love || 0) / 20));
+const heartStr = f => { const n = hearts(f); return n ? '❤️'.repeat(n) + '🤍'.repeat(5 - n) : '🤍'.repeat(5); };
+let followPt = { x: 0, y: 0, t: 0 };
+function petFish(f) {
+  f.spinT = .8; for (let i = 0; i < 5; i++) particles.push({ x: f.x + rand(-15, 15), y: f.y + rand(-10, 5), vy: -rand(20, 45), life: 1.2, icon: '💗' });
+  const now = performance.now(); if (f.petAt && now - f.petAt < 3000) return; // 同一隻魚 3 秒內重複摸不加親密度
+  f.petAt = now; const before = hearts(f); f.love = Math.min(100, (f.love || 0) + 2);
+  if (hearts(f) > before) { floatText(f.x, f.y - 28, `${f.name}更喜歡你了！${'❤️'.repeat(hearts(f))}`, '#ffb3d9'); if (hearts(f) === 3) toast(`💕 ${f.name}有 3 顆心了，在「查看」模式按住水族箱，牠會游過來找你！`); }
+}
 function updateFish(f, dt) {
-  swimStep(f, dt);
+  swimStep(f, dt); if (f.spinT > 0) f.spinT = Math.max(0, f.spinT - dt);
   const sp = SP[f.sp], s = fishScale(f);
   f.hunger = Math.max(0, f.hunger - sp.hungerRate * B.hunger * dt);
   let speed = sp.speed * (f.growth < .35 ? 1.15 : 1), target = null;
   if (f.hunger < 85 && pellets.length) { target = nearestPellet(f); }
   if (target) { f.tx = target.x; f.ty = target.y; speed *= 1.8; }
+  // 3 顆心以上的魚：查看模式按住水族箱時，會游到手指旁邊
+  else if (followPt.t > 0 && hearts(f) >= 3) { f.tx = followPt.x + Math.cos(f.phase * 7) * 40; f.ty = followPt.y + Math.sin(f.phase * 5) * 25; speed *= 2; }
   else {
     f.wanderT -= dt;
     if (f.wanderT <= 0 || Math.hypot(f.tx - f.x, f.ty - f.y) < 15) {
@@ -2623,7 +2644,7 @@ function updateFish(f, dt) {
   if (f.vx > 8) f.face = 1; else if (f.vx < -8) f.face = -1;
   if (target && Math.hypot(target.x - f.x, target.y - f.y) < s * .8 + 8) {
     const fd = FD[target.food];
-    f.hunger = Math.min(100, f.hunger + fd.sat); f.foodMult = fd.grow;
+    f.hunger = Math.min(100, f.hunger + fd.sat); f.foodMult = fd.grow; f.love = Math.min(100, (f.love || 0) + .5);
     pellets.splice(pellets.indexOf(target), 1);
     for (let i = 0; i < 3; i++) bubbles.push({ x: f.x + rand(-5, 5), y: f.y, r: rand(1.5, 3), vy: rand(30, 60) });
   }
@@ -2637,7 +2658,8 @@ function updateFish(f, dt) {
       if (f.dropT <= 0) {
         f.dropT = sp.dropEvery * rand(.8, 1.2);
         const ev = eventTreasure(sp), type = ev ? ev.type : weighted(sp.pool);
-        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: (ev ? ev.mult : sp.mult) * (f.shiny ? 3 : 1), vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+        // 親密度每一顆心寶物價值 +2%（最多 +10%）
+        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: (ev ? ev.mult : sp.mult) * (f.shiny ? 3 : 1) * (1 + .02 * hearts(f)), vy: 0, landed: false, age: 0, bob: rand(0, 6) });
       }
     }
   }
@@ -2677,6 +2699,7 @@ function updateBreeding(dt) {
 
 function update(dt) {
   T += dt;
+  updatePop(dt); if (followPt.t > 0) followPt.t = dragging && viewMode ? 2.5 : followPt.t - dt; // 手指按住不放時一直跟著
   updateVisitor(dt);
   for (const f of state.fish) updateFish(f, dt);
   for (const f of starFish) updateStarFish(f, dt);
@@ -3014,6 +3037,58 @@ function render() {
   ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; ctx.beginPath();
   for (let x = 0; x <= W; x += 20) ctx.lineTo(x, 10 + Math.sin(x * .03 + T * 1.5) * 3);
   ctx.stroke();
+  drawPop();
+}
+
+// ====== 戳泡泡小遊戲：30 秒內點破或滑過泡泡拿金幣，每 10 分鐘可以玩一次 ======
+const POP_CD = 10 * 60 * 1000, POP_TIME = 30;
+const POP = { on: false, t: 0, spawn: 0, list: [], n: 0, coins: 0, stars: 0 };
+const popLeft = () => Math.max(0, POP_CD - (Date.now() - (state.popAt || 0)));
+const updatePopDot = () => $('#popBtn').classList.toggle('dot', !POP.on && popLeft() <= 0);
+async function startPop() {
+  if (POP.on) return;
+  const left = popLeft(); if (left > 0) return toast(`🫧 泡泡還在準備中，約 ${Math.ceil(left / 60000)} 分鐘後可以再玩`);
+  if (menuOpen) closeMenu(); if (!$('#foodPop').hidden) toggleFood(false);
+  if (!await ask(`🫧 戳泡泡小遊戲\n\n${POP_TIME} 秒內點破（或手指滑過）泡泡就能拿金幣！\n金色泡泡金幣比較多，偶爾還有⭐星星泡泡。`, '開始！', '等一下')) return;
+  Object.assign(POP, { on: true, t: POP_TIME, spawn: 0, list: [], n: 0, coins: 0, stars: 0 }); state.popAt = Date.now(); updatePopDot(); save();
+}
+function updatePop(dt) {
+  if (!POP.on) return;
+  POP.t -= dt; POP.spawn -= dt;
+  if (POP.spawn <= 0 && POP.t > .8) {
+    POP.spawn = rand(.28, .5) * (POP.t < 10 ? .7 : 1); // 最後 10 秒泡泡變多
+    const r = Math.random(), kind = r < .04 ? 'star' : r < .15 ? 'gold' : 'coin';
+    POP.list.push({ x: rand(60, W - 60), y: FLOOR + 30, r: kind === 'coin' ? rand(22, 30) : 32, vy: rand(55, 95), ph: rand(0, 6), kind });
+  }
+  for (let i = POP.list.length - 1; i >= 0; i--) { const b = POP.list[i]; b.y -= b.vy * dt; b.x += Math.sin(T * 2 + b.ph) * 22 * dt; if (b.y < -40) POP.list.splice(i, 1); }
+  if (POP.t <= 0) endPop();
+}
+function popAt(p) {
+  for (let i = POP.list.length - 1; i >= 0; i--) {
+    const b = POP.list[i]; if (Math.hypot(b.x - p.x, b.y - p.y) > b.r + 10) continue;
+    POP.list.splice(i, 1); POP.n++;
+    for (let k = 0; k < 4; k++) particles.push({ x: b.x + rand(-12, 12), y: b.y + rand(-12, 12), vy: -rand(20, 50), life: .6, icon: '✨' });
+    if (b.kind === 'star') { const st = Math.max(1, Math.round(rewardStars() * .3)); state.stars += st; state.starEarned += st; POP.stars += st; floatText(b.x, b.y - 20, `+⭐${st}`, '#fff27a'); }
+    else { const v = Math.max(5, Math.round(incomePerSec() * 3)) * (b.kind === 'gold' ? 5 : 1); state.coins += v; state.earned += v; POP.coins += v; floatText(b.x, b.y - 20, `+${fmt(v)}`, b.kind === 'gold' ? '#ffd84d' : '#fff'); bumpPill(); }
+    return true;
+  }
+  return false;
+}
+function endPop() {
+  POP.on = false; POP.list = []; state.stats.popBest = Math.max(state.stats.popBest || 0, POP.n); updatePopDot(); save();
+  ask(`🫧 時間到！\n\n戳破了 ${POP.n} 顆泡泡\n獲得 💰${fmt(POP.coins)}${POP.stars ? `　⭐${POP.stars}` : ''}\n\n10 分鐘後可以再玩一次喔！`, '好', null);
+}
+function drawPop() {
+  if (!POP.on) return;
+  const sp = bubbleSpr();
+  for (const b of POP.list) {
+    if (b.kind !== 'coin') halo(ctx, b.x, b.y, b.r * 1.5, b.kind === 'gold' ? '#ffd860' : '#fff0a0', .7);
+    ctx.drawImage(sp, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2);
+    const ic = emojiSprite(b.kind === 'star' ? '⭐' : '💰'), z = b.r * (b.kind === 'coin' ? .9 : 1.1); ctx.globalAlpha = b.kind === 'coin' ? .8 : 1; ctx.drawImage(ic, b.x - z / 2, b.y - z / 2, z, z); ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 26px "Noto Sans TC","PingFang TC",sans-serif';
+  const txt = `🫧 戳泡泡！剩 ${Math.ceil(POP.t)} 秒　💰${fmt(POP.coins)}${POP.stars ? `　⭐${POP.stars}` : ''}`;
+  ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(txt, W / 2, 128); ctx.fillStyle = '#fff'; ctx.fillText(txt, W / 2, 128);
 }
 
 // ====== 互動 ======
@@ -3067,15 +3142,17 @@ canvas.addEventListener('pointerdown', e => {
   dragging = true; const p = worldPos(e);
   // 飼料選單打開時，點水族箱只是把選單關掉
   if (!$('#foodPop').hidden) { toggleFood(false); dragging = false; return; }
+  if (POP.on) { popAt(p); return; }
   if (visitorAt(p)) { tapVisitor(); return; }
   const t = treasureAt(p); if (t) { collectTreasure(t); return; }
   // 查看模式：點魚看狀態、點造景升級，不會投放飼料
   if (viewMode) {
     let hit = null, hd = 1e9;
     for (const f of [...state.fish, ...starFish]) { const s = fishScale(f) * 1.4 + 8, d = Math.hypot(f.x - p.x, f.y - p.y); if (d < s && d < hd) { hd = d; hit = f; } }
-    if (hit) { if (hit.id !== selFishId) taskProg('view'); selFishId = hit.id; updateFishCard(); return; }
+    if (hit) { if (hit.id !== selFishId) taskProg('view'); selFishId = hit.id; if (typeof hit.id === 'number') petFish(hit); updateFishCard(); return; }
     const pc = !treasureAt(p, 60) && sceneAt(p);
     if (pc) { openScene(pc.id); return; }
+    followPt = { x: p.x, y: p.y, t: 2.5 };
     selFishId = null; updateFishCard(); return;
   }
   // 餵食模式：點哪裡就投放飼料（點到魚也一樣）
@@ -3083,7 +3160,12 @@ canvas.addEventListener('pointerdown', e => {
   if (state.coins < fd.cost) { floatText(p.x, p.y, '金幣不足', '#ff8080'); return; }
   state.coins -= fd.cost; pellets.push(mkPellet(p.x, Math.max(TOP - 20, Math.min(p.y, FLOOR)))); taskProg('feed');
 });
-canvas.addEventListener('pointermove', e => { if (!dragging && e.pointerType !== 'mouse') return; const t = treasureAt(worldPos(e), 24); if (t && (dragging || e.buttons === 0)) collectTreasure(t); });
+canvas.addEventListener('pointermove', e => {
+  if (!dragging && e.pointerType !== 'mouse') return; const p = worldPos(e);
+  if (POP.on) { if (dragging || e.pointerType === 'mouse') popAt(p); return; }
+  if (viewMode && dragging && followPt.t > 0) followPt = { x: p.x, y: p.y, t: 2.5 };
+  const t = treasureAt(p, 24); if (t && (dragging || e.buttons === 0)) collectTreasure(t);
+});
 window.addEventListener('pointerup', () => dragging = false);
 
 // 右上角的「餵食」按鈕：顯示目前的飼料，按下去可以換飼料
@@ -3364,6 +3446,7 @@ function updateFishCard() {
   }
   const sp = SP[f.sp];
   el.innerHTML = `<b>${f.shiny ? '✨' : ''}${f.name}</b>　<small>${f.shiny ? SHINY_NAME[f.shiny] : ''}${sp.name}・${stageName(f)}</small><button class="ghost mini" data-rename="${f.id}">✏️ 改名</button>
+    <div>親密度 ${heartStr(f)} <small>${Math.floor(f.love || 0)}/100${hearts(f) ? `・寶物 +${hearts(f) * 2}%` : ''}</small></div>
     <div>飽食度 ${Math.round(f.hunger)}%<div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></div>
     <div style="margin-top:4px">${f.growth >= 1 ? `下次產寶：約 ${Math.max(0, Math.ceil(f.dropT / B.drop))} 秒` : `成長 ${Math.floor(f.growth * 100)}%（飼料加速 ×${f.foodMult}）`}
     ${f.growth < 1 ? `<div class="bar"><i style="width:${f.growth * 100}%;background:#4aa8ff"></i></div>` : ''}</div>
@@ -3436,6 +3519,7 @@ document.addEventListener('webkitfullscreenchange', updateFsBtn);
 
 // ====== 選單開關 ======
 let menuOpen = false, menuOpenedAt = 0;
+const applyBigText = () => document.body.classList.toggle('big', !!state.bigText);
 function updateWallet() { $('#wCoin').textContent = fmt(state.coins); $('#wStar').textContent = fmt(state.stars); }
 function openMenu() { updateWallet(); menuOpen = true; menuOpenedAt = performance.now(); document.body.classList.add('menu-open'); $('#menu').hidden = false; $('#menuBack').hidden = false; $('#menuBtn').classList.add('on'); renderTab(); }
 function closeMenu() { menuOpen = false; document.body.classList.remove('menu-open'); $('#menu').hidden = true; $('#menuBack').hidden = true; $('#menuBtn').classList.remove('on'); }
@@ -3456,6 +3540,7 @@ $('#tabs').addEventListener('click', e => { const b = e.target.closest('button')
 $('#topTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.top === 'store' ? storeTab : b.dataset.top === 'collect' ? collectTab : b.dataset.top); });
 $('#tabs2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setTab(b.dataset.tab); });
 $('#giftBtn').onclick = () => { setTab('daily'); if (!menuOpen) openMenu(); };
+$('#popBtn').onclick = e => { e.stopPropagation(); startPop(); };
 
 // 一次買很多隻：數量受空位和金幣限制，買得起幾隻就買幾隻
 function buyFishN(id, want) {
@@ -3542,7 +3627,7 @@ function renderTab() {
         <div class="info"><b>${sp.name} × ${list.length}</b><small>成魚 ${adults.length}・未成年 ${list.length - adults.length}</small></div></div>
         <small style="color:var(--muted)">💞 ${status}</small><div class="bar"><i style="width:${prog * 100}%;background:#ff8fc8"></i></div>`;
       for (const f of list) {
-        h += `<div class="row fishrow" style="margin-top:6px;font-size:13px"><span style="flex:1;min-width:110px">${f.shiny ? `✨${SHINY_NAME[f.shiny]}・` : ''}${f.name}・${stageName(f)}${f.growth < 1 ? ` ${Math.floor(f.growth * 100)}%` : ''}
+        h += `<div class="row fishrow" style="margin-top:6px;font-size:13px"><span style="flex:1;min-width:110px">${f.shiny ? `✨${SHINY_NAME[f.shiny]}・` : ''}${f.name}・${stageName(f)}${hearts(f) ? ` ${'❤️'.repeat(hearts(f))}` : ''}${f.growth < 1 ? ` ${Math.floor(f.growth * 100)}%` : ''}
           <div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></span>
           <button class="ghost" data-act="viewFish" data-arg="${f.id}">看</button><button data-act="sellFish" data-arg="${f.id}">賣 💰${fmt(sellPrice(f))}</button><button class="star" data-act="releaseFish" data-arg="${f.id}">放生 ⭐${releaseStars(f)}</button></div>`;
       }
@@ -3555,9 +3640,10 @@ function renderTab() {
   } else if (tab === 'settings') {
     const col = 'class="row" style="flex-direction:column;align-items:stretch;gap:10px;margin-top:8px"';
     h += Cloud.note().replace('<h4>', '<h4 style="margin-top:4px">');
-    h += `<h4>📱 畫面</h4><div ${col}>${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="toggleCoinFx">🪙 金幣特效（撿寶物時金幣飛到左上角）：<b>${state.coinFx === false ? '關' : '開'}</b></button></div>`;
+    h += `<h4>📱 畫面</h4><div ${col}>${isAppMode() ? '' : `<button data-act="fullscreen">${isFull() ? '⛶ 離開全螢幕' : '⛶ 全螢幕'}</button>`}<button data-act="toggleCoinFx">🪙 金幣特效（撿寶物時金幣飛到左上角）：<b>${state.coinFx === false ? '關' : '開'}</b></button><button data-act="toggleBig">🔠 大字模式（選單和視窗的字放大）：<b>${state.bigText ? '開' : '關'}</b></button></div>`;
+    h += `<h4>🎵 背景音樂</h4><div ${col}>${Object.entries(Music.tracks).map(([id, t]) => `<button class="${Music.track() === id ? 'on' : 'ghost'}" data-act="setTrack" data-arg="${id}">${t.name}<small style="display:block;font-size:13px;${Music.track() === id ? 'opacity:.75' : 'color:var(--muted)'}">${t.desc}${Music.track() === id ? '（目前播放）' : ''}</small></button>`).join('')}</div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻以上吃飽（飽食度 40% 以上）就會開始繁殖倒數，時間到大家一起生：1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻（空位不夠時會少生）。倒數時間跟對數無關，城堡等造景和繁殖燈可以縮短。<br>・離線時也會繁殖，但每一對最多生一隻，小魚要回來餵才會長大。小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！</div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻以上吃飽（飽食度 40% 以上）就會開始繁殖倒數，時間到大家一起生：1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻（空位不夠時會少生）。倒數時間跟對數無關，城堡等造景和繁殖燈可以縮短。<br>・離線時也會繁殖，但每一對最多生一隻，小魚要回來餵才會長大。小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！<br>・「🔍 查看」時點魚會摸摸牠，魚會開心轉一圈。常摸、常餵的魚親密度會變高（最多 5 顆心），每顆心寶物價值 +2%；3 顆心以上的魚，在查看模式按住水族箱會游過來找你。<br>・右上角 🫧 每 10 分鐘可以玩一次「戳泡泡」，30 秒內點破泡泡拿金幣（有紅點代表可以玩）。<br>・「設定」可以換背景音樂、打開大字模式。</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {
@@ -3651,6 +3737,8 @@ const ACTIONS = {
   fullscreen() { toggleFullscreen(); },
   cloudLogin() { Cloud.login(); },
   claimGift() { claimGift(); },
+  toggleBig() { state.bigText = !state.bigText; applyBigText(); toast(`🔠 大字模式：${state.bigText ? '開' : '關'}`); },
+  setTrack(id) { Music.setTrack(id); },
   toggleCoinFx() { state.coinFx = state.coinFx === false; if (!state.coinFx) coinFx = []; toast(`金幣特效：${state.coinFx ? '開' : '關'}`); },
   cloudLogout() { Cloud.logout(); },
   cloudRestore() { Cloud.restore(); },
@@ -3710,6 +3798,8 @@ const ACHS = [
   { id: 'born100', icon: '🍼', name: '育兒達人', desc: '累計生出 100 隻小魚', test: () => state.stats.born >= 100, stars: 60 },
   { id: 'rel10', icon: '🌊', name: '回歸大海', desc: '累計放生 10 隻魚', test: () => state.stats.released >= 10, stars: 10 },
   { id: 'rel100', icon: '🌊', name: '海洋守護者', desc: '累計放生 100 隻魚', test: () => state.stats.released >= 100, stars: 60 },
+  { id: 'love5', icon: '💕', name: '心心相印', desc: '任一隻魚的親密度達到 5 顆心', test: () => state.fish.some(f => hearts(f) >= 5), stars: 30 },
+  { id: 'pop1', icon: '🫧', name: '泡泡高手', desc: '一次戳泡泡戳破 40 顆以上', test: () => (state.stats.popBest || 0) >= 40, stars: 20 },
   { id: 'shiny', icon: '🌈', name: '閃閃發亮', desc: '得到第一隻稀有色的魚', test: () => Object.keys(state.dex.shiny).length > 0, stars: 20 },
   { id: 'visit10', icon: '🐋', name: '好客的主人', desc: '招待神秘訪客 10 次', test: () => state.stats.visitors >= 10, stars: 20 },
   { id: 'scene1', icon: '🪸', name: '造景入門', desc: `${SCENE.length} 種造景都擁有`, test: () => SCENE.every(p => state.scene[p.id].lv >= 1), stars: 30 },
@@ -4015,7 +4105,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch();
+    secT = 0; checkAch(); updatePopDot();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }
@@ -4082,9 +4172,20 @@ function checkOffline() {
 
 // ====== 背景音樂（即時合成：柔和和弦 + 音樂盒旋律 + 海水聲 + 水滴與遠方鯨鳴） ======
 const Music = (() => {
-  const KEY = 'aquarium-music', BAR = 8;
-  const CHORDS = [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 62]];
-  const SCALE = [72, 74, 76, 79, 81, 84, 86, 88];
+  const KEY = 'aquarium-music', TKEY = 'aquarium-track';
+  // 四首背景音樂：和弦進行、旋律音階、節奏快慢不同；mode 決定旋律怎麼走
+  const TRACKS = {
+    ocean:   { name: '🌊 海洋輕音樂', desc: '悠閒的海底氣氛（預設）', bar: 8, lp: 900, padVol: .018, chords: [[48, 55, 64, 71], [45, 52, 60, 67], [41, 48, 57, 64], [43, 50, 59, 62]],
+      scale: [72, 74, 76, 79, 81, 84, 86, 88], gaps: [.75, 1.5, 1.5, 2.25, 3], p: .72, vol: [.05, .09], mode: 'random', drops: true, whale: true },
+    lullaby: { name: '🌙 夜晚搖籃曲', desc: '像音樂盒一樣輕輕柔柔', bar: 9, lp: 650, padVol: .014, chords: [[41, 48, 57, 64], [36, 43, 52, 60], [38, 45, 53, 62], [34, 41, 50, 57]],
+      gaps: [.75], p: .9, vol: [.03, .05], mode: 'arp', drops: false, whale: true },
+    festive: { name: '🎉 節慶歡樂', desc: '輕快熱鬧、有節奏感', bar: 4, lp: 1500, padVol: .014, chords: [[48, 55, 64, 72], [43, 50, 59, 67], [45, 52, 60, 69], [41, 48, 57, 65]],
+      scale: [72, 74, 76, 79, 81, 84], gaps: [.25, .5, .5, .75], p: .85, vol: [.04, .065], mode: 'random', bass: true, drops: false, whale: false },
+    dream:   { name: '✨ 夢幻星空', desc: '閃閃發亮的夢幻音色', bar: 10, lp: 800, padVol: .017, chords: [[48, 55, 62, 66], [45, 52, 59, 64], [50, 57, 64, 69], [43, 50, 57, 62]],
+      scale: [74, 76, 78, 79, 83, 86, 88, 90, 91], gaps: [1, 1.5, 2], p: .7, vol: [.035, .065], mode: 'sparkle', drops: true, whale: false },
+  };
+  let cur = 'ocean'; try { const t = localStorage.getItem(TKEY); if (TRACKS[t]) cur = t; } catch (e) { }
+  let TR = TRACKS[cur], BAR = TR.bar, arpI = 0, nextBeat = 0;
   const hz = m => 440 * Math.pow(2, (m - 69) / 12);
   let ac, master, wet, timer, nextBar = 0, nextNote = 0, nextDrop = 0, nextWhale = 0, bar = 0, playing = false, unlockEl;
   let wanted = true;
@@ -4117,7 +4218,8 @@ const Music = (() => {
     for (const m of chord) for (const det of [-5, 5]) {
       const o = ac.createOscillator(), f = ac.createBiquadFilter(), g = ac.createGain();
       o.type = 'triangle'; o.frequency.value = hz(m); o.detune.value = det; f.type = 'lowpass'; f.frequency.value = 900;
-      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.018, t + 2.5); g.gain.setValueAtTime(.018, t + BAR - .5); g.gain.linearRampToValueAtTime(0, t + BAR + 2.5);
+      o.type = 'triangle'; f.frequency.value = TR.lp;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(TR.padVol, t + 2.5); g.gain.setValueAtTime(TR.padVol, t + BAR - .5); g.gain.linearRampToValueAtTime(0, t + BAR + 2.5);
       o.connect(f); f.connect(g); g.connect(master); g.connect(wet); o.start(t); o.stop(t + BAR + 3);
     }
   }
@@ -4135,6 +4237,12 @@ const Music = (() => {
     g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.045, t + .005); g.gain.exponentialRampToValueAtTime(.0001, t + .18);
     o.connect(g); g.connect(master); g.connect(wet); o.start(t); o.stop(t + .25);
   }
+  // 節慶的貝斯：短短的撥弦聲
+  function pluck(m, t) {
+    const o = ac.createOscillator(), g = ac.createGain(); o.type = 'triangle'; o.frequency.value = hz(m);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.06, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + .4);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + .45);
+  }
   function whale(t) {
     const o = ac.createOscillator(), vib = ac.createOscillator(), vg = ac.createGain(), lp = ac.createBiquadFilter(), g = ac.createGain(), f0 = rand(150, 210);
     o.type = 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 1.7, t + 2.2); o.frequency.linearRampToValueAtTime(f0 * 1.2, t + 4.5);
@@ -4146,15 +4254,25 @@ const Music = (() => {
   function tick() {
     const now = ac.currentTime;
     if (!nextDrop) { nextDrop = now + 3; nextWhale = now + 20; }
-    while (nextDrop < now + 1.5) { drop(Math.max(now, nextDrop)); if (Math.random() < .3) drop(Math.max(now, nextDrop) + .12); nextDrop += rand(4, 10); }
-    while (nextWhale < now + 1.5) { whale(Math.max(now, nextWhale)); nextWhale += rand(40, 75); }
+    while (nextDrop < now + 1.5) { if (TR.drops) { drop(Math.max(now, nextDrop)); if (Math.random() < .3) drop(Math.max(now, nextDrop) + .12); } nextDrop += rand(4, 10); }
+    while (nextWhale < now + 1.5) { if (TR.whale) whale(Math.max(now, nextWhale)); nextWhale += rand(40, 75); }
     if (nextBar < now) nextBar = now + .1;
     if (nextNote < now) nextNote = now + .5;
-    while (nextBar < now + 1.5) { pad(CHORDS[bar % 4], nextBar); nextBar += BAR; bar++; }
+    if (nextBeat < now) nextBeat = now + .1;
+    while (nextBar < now + 1.5) { pad(TR.chords[bar % 4], nextBar); nextBar += BAR; bar++; }
+    const chord = TR.chords[(bar + 3) % 4];
     while (nextNote < now + 1.5) {
-      if (Math.random() < .72) { bell(pick(SCALE), nextNote, rand(.05, .09)); if (Math.random() < .2) bell(pick(SCALE) - 12, nextNote + .01, .05); }
-      nextNote += pick([.75, 1.5, 1.5, 2.25, 3]);
+      if (TR.mode === 'arp') {
+        // 音樂盒：把目前的和弦一個音一個音往上彈
+        const m = chord[[0, 1, 2, 3, 2, 1][arpI++ % 6]] + 24; bell(m, nextNote, rand(TR.vol[0], TR.vol[1]));
+      } else if (Math.random() < TR.p) {
+        bell(pick(TR.scale), nextNote, rand(TR.vol[0], TR.vol[1])); if (Math.random() < .2) bell(pick(TR.scale) - 12, nextNote + .01, TR.vol[0]);
+        // 星空：偶爾來一串往上的閃亮音
+        if (TR.mode === 'sparkle' && Math.random() < .18) { const i0 = Math.floor(Math.random() * (TR.scale.length - 4)); for (let k = 0; k < 4; k++) bell(TR.scale[i0 + k] + 12, nextNote + .12 * (k + 1), TR.vol[0] * .8); }
+      }
+      nextNote += pick(TR.gaps);
     }
+    while (TR.bass && nextBeat < now + 1.5) { pluck(chord[(Math.round(nextBeat * 2) % 2) ? 1 : 0] - 12, nextBeat); nextBeat += .5; }
   }
   function start() {
     if (!wanted) return;
@@ -4176,7 +4294,14 @@ const Music = (() => {
   function updateBtn() { const b = $('#musicBtn'); b.textContent = wanted ? '🎵' : '🔇'; b.title = wanted ? '關閉背景音樂' : '開啟背景音樂'; b.classList.toggle('on', playing); }
   function toggle() { wanted = !wanted; try { localStorage.setItem(KEY, wanted ? 'on' : 'off'); } catch (e) { } wanted ? start() : stop(); toast(wanted ? '🎵 背景音樂開啟' : '🔇 背景音樂關閉'); }
   document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else if (wanted) setTimeout(start, 0); });
-  return { start, toggle, updateBtn };
+  // 換一首：下一小節就換成新的和弦與旋律
+  function setTrack(id) {
+    if (!TRACKS[id]) return; cur = id; TR = TRACKS[id]; BAR = TR.bar; arpI = 0;
+    try { localStorage.setItem(TKEY, id); } catch (e) { }
+    if (ac) { const now = ac.currentTime; nextBar = now + .3; nextNote = now + .5; nextBeat = now + .5; }
+    if (!wanted) toggle(); else toast(`🎵 背景音樂：${TR.name}`);
+  }
+  return { start, toggle, updateBtn, setTrack, tracks: TRACKS, track: () => cur };
 })();
 $('#musicBtn').onclick = e => { e.stopPropagation(); Music.toggle(); };
 // 瀏覽器規定要先點一下畫面才能播放聲音
@@ -4185,7 +4310,7 @@ for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEv
 load(); syncStarFish(); calcBonus(); buildPreviews();
 resize(); window.addEventListener('resize', resize); window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 if (window.visualViewport) visualViewport.addEventListener('resize', resize);
-updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
+applyBigText(); updatePopDot(); updateModeLabel(); renderTab(); Music.updateBtn(); checkOffline(); save(); setTimeout(importFromLink, 300);
 if (migrateNote) { ask(migrateNote, '好', null); migrateNote = ''; }
 if (state.daily.date !== todayStr()) newDay(); updateEvent(); updateGiftDot();
 // 之前登入過 Google 的話，打開遊戲就自動恢復登入並開始雲端備份
