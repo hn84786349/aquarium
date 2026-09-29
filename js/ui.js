@@ -113,6 +113,8 @@ function renderTab() {
       成長速度 <b>+${Math.round(r.growth * 100)}%</b>　繁殖速度 <b>+${Math.round(r.breed * 100)}%</b>　飽食度消耗 <b>-${Math.round((1 - B.hunger) * 100)}%</b>　離線收益 <b>+${Math.round(r.offline * 100)}%</b></div>
       <p class="hint">每個造景都有固定的位置，會跟背景融為一體。升級會讓功能變強；外觀可以選自己喜歡的等級，功能一樣算最高等級。</p>`;
     for (const p of SCENE) h += sceneCard(p);
+  } else if (tab === 'starshop') {
+    h += renderStarShop();
   } else if (tab === 'bg') {
     h += `<p class="hint">更漂亮的背景還會提高寶物價值！</p>`;
     for (const bg of BGS) {

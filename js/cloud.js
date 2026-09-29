@@ -245,6 +245,7 @@ function updateFishCard() {
     <div>飽食度 ${Math.round(f.hunger)}%<div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></div>
     <div style="margin-top:4px">${f.growth >= 1 ? `下次產寶：約 ${Math.max(0, Math.ceil(f.dropT / B.drop))} 秒` : `成長 ${Math.floor(f.growth * 100)}%（飼料加速 ×${f.foodMult}）`}
     ${f.growth < 1 ? `<div class="bar"><i style="width:${f.growth * 100}%;background:#4aa8ff"></i></div>` : ''}</div>
+    <div style="margin-top:6px">${fxOwned().length ? `<button class="ghost mini" data-fx="${f.id}">✨ 特效：${f.fx ? FISH_FX[f.fx].name : '無'} ▸</button>` : '<small style="color:var(--muted)">✨ 可以在「商店 → ✨小舖」兌換魚的特效</small>'}</div>
     <div class="row" style="margin-top:8px"><button data-sell="${f.id}">出售 💰${fmt(sellPrice(f))}</button><button class="star" data-release="${f.id}">放生 ⭐${releaseStars(f)}</button><button class="ghost" data-close="1">關閉</button></div>`;
 }
 $('#fishCard').addEventListener('click', e => {

@@ -37,6 +37,7 @@ function calcBonus() {
     if (p.eff === 'all') for (const k in b) b[k] += amt; else b[p.eff] += amt;
   }
   B = { value: 1 + b.value, drop: 1 + b.drop, breed: (1 + b.breed) * (1 + LAMP_BOOST[state.lampLv || 0]), growth: 1 + b.growth, offline: 1 + b.offline, hunger: Math.max(0.3, 1 - b.hunger) * (1 - .1 * (state.pumpLv || 0)), raw: b };
+  applyPotions(B); // 星星小舖的限時藥水
 }
 
 // ====== 存檔 ======

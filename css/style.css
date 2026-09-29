@@ -21,6 +21,7 @@ canvas{display:block;touch-action:none;cursor:pointer}
 /* 浮在水族箱上的資訊與按鈕 */
 #hud,#ctrls{position:absolute;top:max(8px,env(safe-area-inset-top));display:flex;gap:6px;flex-wrap:wrap;z-index:5}
 #hud{left:max(8px,env(safe-area-inset-left));pointer-events:none}
+#hud #potionPill{font-size:14px;padding:4px 10px;color:#c8ffd8}
 #ctrls{right:max(8px,env(safe-area-inset-right));justify-content:flex-end}
 .pill{background:var(--glass);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 14px;font-size:17px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .pill.coin{color:var(--accent)}

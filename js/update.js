@@ -43,7 +43,7 @@ function petFish(f) {
 function updateFish(f, dt) {
   swimStep(f, dt); if (f.spinT > 0) f.spinT = Math.max(0, f.spinT - dt);
   const sp = SP[f.sp], s = fishScale(f);
-  if (sp.trail) trailStep(f, dt, s);
+  if (sp.trail || f.fx === 'stardust') trailStep(f, dt, s);
   f.hunger = Math.max(0, f.hunger - sp.hungerRate * B.hunger * dt);
   let speed = sp.speed * (f.growth < .35 ? 1.15 : 1), target = null;
   if (f.hunger < 85 && pellets.length) { target = nearestPellet(f); }

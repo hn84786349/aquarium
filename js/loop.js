@@ -23,7 +23,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch(); updatePopDot();
+    secT = 0; checkAch(); updatePopDot(); potionTick();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }
@@ -69,8 +69,10 @@ function checkOffline() {
   const now = Date.now(), away = state.lastSeen ? (now - state.lastSeen) / 1000 : 0;
   state.lastSeen = now;
   if (away < 60 || offlineShown) return;
+  potionPause = true; calcBonus(); // 離線收益不算藥水
   const sec = Math.min(away, offlineMaxH() * 3600), amt = Math.floor(incomePerSec() * sec * OFFLINE_RATE * B.offline);
   const born = offlineBreed(sec);
+  potionPause = false; calcBonus();
   if (amt < 1 && !born.length) return;
   offlineShown = true;
   // 整理出生的小魚：孔雀魚 ×2、✨金色小丑魚 …

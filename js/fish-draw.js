@@ -96,23 +96,26 @@ function drawManta(c, s, w, e, f, P = MANTA0) {
 }
 // 撿寶蝸牛：用程式畫（不用表情符號，各家手機的蝸牛圖案朝向不同，會變成倒退走）
 function drawSnail(c, x, y, s, dir, moving) {
-  const k = moving ? Math.sin(T * 7) * .08 : 0;
+  const k = moving ? Math.sin(T * 7) * .08 : 0, K = snailSkin(); // 造型在 star-shop.js
   c.save(); c.translate(x, y); c.scale(dir, 1);
   c.fillStyle = 'rgba(0,0,0,0.18)'; ell(c, 0, s * .45, s * 1.3, s * .18); c.fill();
   // 身體（會伸縮）與觸角
-  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * (1.3 + k), s * .08], [s * (1.05 + k), -s * .22], [s * .55, -s * .1], [-s * .9, s * .12]], '#eccb9f');
-  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * .9, s * .22], [-s * .95, s * .28]], '#c9a07a');
-  c.strokeStyle = '#dcb88c'; c.lineWidth = s * .13; c.lineCap = 'round';
+  if (K.glow) glowDot(c, -s * .2, -s * .3, s * 1.6, K.glow, .5);
+  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * (1.3 + k), s * .08], [s * (1.05 + k), -s * .22], [s * .55, -s * .1], [-s * .9, s * .12]], K.body[0]);
+  polyFill(c, [[-s * 1.15, s * .4], [s * (1.15 + k), s * .4], [s * .9, s * .22], [-s * .95, s * .28]], K.body[1]);
+  c.strokeStyle = K.body[2]; c.lineWidth = s * .13; c.lineCap = 'round';
   const wig = Math.sin(T * 3) * s * .06;
   c.beginPath(); c.moveTo(s * (1.05 + k), -s * .12); c.lineTo(s * (1.35 + k) + wig, -s * .8);
   c.moveTo(s * (.85 + k), -s * .1); c.lineTo(s * (.98 + k) - wig, -s * .72); c.stroke();
   c.fillStyle = '#2a1a10'; circle(c, s * (1.35 + k) + wig, -s * .82, s * .12); c.fill(); circle(c, s * (.98 + k) - wig, -s * .74, s * .1); c.fill();
   // 多邊形殼＋螺旋紋
-  const cx = -s * .2, cy = -s * .42, R = s * .82, cols = ['#d9793a', '#b95a26', '#e8934a', '#c86a30', '#f0a458', '#b95a26', '#dd8240', '#c86a30'];
+  const cx = -s * .2, cy = -s * .42, R = s * .82, cols = K.shell === 'rainbow' ? [0, 1, 2, 3, 4, 5, 6, 7].map(i => css(hsl((i * 45 + Math.round(T * 40)) % 360, .85, .7))) : K.shell;
   for (let i = 0; i < 8; i++) { const a0 = i * Math.PI / 4, a1 = a0 + Math.PI / 4; polyFill(c, [[cx, cy], [cx + Math.cos(a0) * R, cy + Math.sin(a0) * R], [cx + Math.cos(a1) * R, cy + Math.sin(a1) * R]], cols[i]); }
-  c.strokeStyle = '#ffd89a'; c.lineWidth = Math.max(1.2, s * .1); c.lineJoin = 'round'; c.beginPath();
+  c.strokeStyle = K.line; c.lineWidth = Math.max(1.2, s * .1); c.lineJoin = 'round'; c.beginPath();
   for (let i = 0; i <= 20; i++) { const a = i * .55, r = R * (.85 - i * .038); c.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
   c.stroke();
+  if (K.stars) for (let i = 0; i < 5; i++) { c.fillStyle = `rgba(255,255,255,${.4 + .6 * Math.abs(Math.sin(T * 2 + i * 1.7))})`; circle(c, cx + Math.cos(i * 2.4) * R * .6, cy + Math.sin(i * 2.4) * R * .6, s * .07); c.fill(); }
+  if (K.twinkle) twinkle(c, cx + R * .3, cy - R * .5, s * .35, 1, '#ffffff');
   c.restore();
 }
 function drawBeluga(c, s, w, e, f) { drawModel(c, s, w, e, f, MODELS.beluga); }
@@ -376,6 +379,7 @@ function drawFish(c, f, t, alpha = 1) {
   c.fillStyle = `rgba(0,0,0,${(.16 - hgt * .1) * alpha})`; ell(c, f.x, FLOOR + 14, s * (1.3 - hgt * .4), s * .18); c.fill();
   c.globalAlpha = alpha;
   if (sp.trail) drawTrail(c, f, s, sp.trail, alpha);
+  if (f.fx) drawFishFx(c, f, s, alpha, 0); // 星星小舖的魚特效
   if (sp.star) {
     const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, s * 2.2); g.addColorStop(0, `rgba(255,245,200,${.22 + .08 * Math.sin(t * 2 + f.phase)})`); g.addColorStop(1, 'rgba(255,245,200,0)');
     c.fillStyle = g; c.fillRect(f.x - s * 2.2, f.y - s * 2.2, s * 4.4, s * 4.4);
@@ -389,6 +393,7 @@ function drawFish(c, f, t, alpha = 1) {
   if (f.hunger <= 0) c.globalAlpha = alpha * .75;
   if (f.shiny) shinyDraw(c, sp, s, w, f); else sp.draw(c, s, w, f.growth < .35 ? 1.35 : 1, f);
   c.restore(); c.globalAlpha = 1;
+  if (f.fx) drawFishFx(c, f, s, alpha, 1);
   if (alpha < 1) return;
   if (sp.star) { if (f.id === selFishId) { c.strokeStyle = '#ffc940'; c.setLineDash([5, 4]); c.lineWidth = 2; ell(c, f.x, f.y, s * 1.8 + 6, s + 10); c.stroke(); c.setLineDash([]); } return; }
   if (f.hunger < 30 || f.id === selFishId) {
