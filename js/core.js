@@ -3,6 +3,8 @@
 // ====== 基本常數 ======
 // 水族箱高度固定 620，寬度依螢幕比例調整，讓畫面剛好填滿螢幕
 let W = 1000;
+// 省電模式：魚很多時簡化特效、降低畫面解析度和更新頻率（設定在 loop.js 的 updateLite）
+let LITE = false;
 const H = 620, FLOOR = 555, TOP = 55;
 const SAVE_KEY = 'aquarium-save-v1';
 // 在畫布上畫表情符號。一定要先把填色設回實心顏色：iPhone 的 Safari 會用當下的填色（例如金色光暈的漸層）

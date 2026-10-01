@@ -2,9 +2,18 @@
 // ====== 主迴圈 ======
 let last = performance.now(), hudT = 0, saveT = 0, cloudT = 0, secT = 0, lastCoins = -1, lastFishN = -1, lastStars = -1;
 let lastFrame = 0;
+// 省電模式：auto（預設，魚超過 60 隻時自動開啟）／on（一直開）／off（關閉）
+const LITE_AUTO = 60;
+const liteMode = () => state.lite || 'auto';
+function updateLite() {
+  const want = liteMode() === 'on' || (liteMode() === 'auto' && state.fish.length > LITE_AUTO);
+  if (want === LITE) return;
+  LITE = want; resize(); sceneT = -1;
+  if (menuOpen && tab === 'settings') renderTab();
+}
 function frame(now) {
   // 電腦的高更新率螢幕會每秒呼叫 120～165 次，限制在約 60～80 張，畫面一樣順但負擔少一半
-  if (now - lastFrame < 12) { requestAnimationFrame(frame); return; }
+  if (now - lastFrame < (LITE ? 28 : 12)) { requestAnimationFrame(frame); return; } // 省電模式每秒約 30 張
   lastFrame = now;
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   update(dt); render();
@@ -23,7 +32,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch(); updatePopDot(); potionTick();
+    secT = 0; checkAch(); updatePopDot(); potionTick(); updateLite();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }

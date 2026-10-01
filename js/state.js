@@ -114,7 +114,7 @@ function resize() {
   if (ch > vh) { ch = vh; cw = vh * W / H; }
   canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px';
   // 畫布解析度最多約 230 萬像素：手機維持清晰，大螢幕電腦不會畫太多像素而變卡
-  const dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt(2.3e6 / (cw * ch)));
+  const dpr = Math.min(2, window.devicePixelRatio || 1, Math.sqrt((LITE ? .9e6 : 2.3e6) / (cw * ch))); // 省電模式約 90 萬像素
   canvas.width = Math.max(1, Math.round(cw * dpr));
   canvas.height = Math.max(1, Math.round(ch * dpr));
   scale = canvas.width / W;

@@ -32,6 +32,7 @@ function ribbon(c, pts, w0, col, alpha = .9) {
     L.push([pts[i][0] - dy / d * w, pts[i][1] + dx / d * w]); R.push([pts[i][0] + dy / d * w, pts[i][1] - dx / d * w]);
   }
   const base = Array.isArray(col) ? col : hex(col);
+  if (LITE) return polyFill(c, [...L, ...R.reverse()], css(base, alpha)); // 省電模式：整條彩帶一次畫完
   for (let i = 0; i < n; i++) {
     polyFill(c, [pts[i], L[i], L[i + 1], pts[i + 1]], css(bright(base, .88), alpha));
     polyFill(c, [pts[i], R[i], R[i + 1], pts[i + 1]], css(bright(base, 1.08), alpha));
@@ -224,6 +225,7 @@ function drawSeahorse(c, s, w, e, f, P = HORSE0) {
 }
 // ---- 更高級的夢幻生物（用現有的造型換成更夢幻的配色，再加上光暈與星光） ----
 function sparkles(c, s, f, col, n = 5) {
+  if (LITE) return; // 省電模式不畫閃光
   const ph = f ? f.phase : 0;
   for (let i = 0; i < n; i++) {
     const k = Math.max(0, Math.sin(T * 3 + i * 1.7 + ph)); if (k < .1) continue;
@@ -379,7 +381,8 @@ function drawFish(c, f, t, alpha = 1) {
   c.fillStyle = `rgba(0,0,0,${(.16 - hgt * .1) * alpha})`; ell(c, f.x, FLOOR + 14, s * (1.3 - hgt * .4), s * .18); c.fill();
   c.globalAlpha = alpha;
   if (sp.trail) drawTrail(c, f, s, sp.trail, alpha);
-  if (sp.star) {
+  if (sp.star && LITE) halo(c, f.x, f.y, s * 2.2, '#fff5c8', .25);
+  else if (sp.star) {
     const g = c.createRadialGradient(f.x, f.y, 0, f.x, f.y, s * 2.2); g.addColorStop(0, `rgba(255,245,200,${.22 + .08 * Math.sin(t * 2 + f.phase)})`); g.addColorStop(1, 'rgba(255,245,200,0)');
     c.fillStyle = g; c.fillRect(f.x - s * 2.2, f.y - s * 2.2, s * 4.4, s * 4.4);
   }

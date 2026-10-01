@@ -95,6 +95,7 @@ function hGrad(c, L, Hh, cols, alpha = 1) {
 }
 // 魚鰭：從基點展開的三角扇形，每片三角形明暗交錯，看起來像鰭條
 function polyFin(c, bx, by, pts, cols, alpha, edge) {
+  if (LITE) return polyFill(c, [[bx, by], ...pts], css(stops(cols, .5), alpha)); // 省電模式：整片鰭一次畫完
   const n = pts.length - 1;
   for (let i = 0; i < n; i++) {
     const col = bright(stops(cols, n > 1 ? i / (n - 1) : 0), i % 2 ? 1.03 : .95);
@@ -140,9 +141,9 @@ function drawModel(c, s, w, e, f, m) {
   for (const fin of m.fins || []) if (fin.kind !== 'pec') lpTopFin(c, fin, L, Hh, s, w);
   if (m.tail) lpTail(c, -L + s * .02, m.tail, s, w);
   const spr = SPRITES[m.id] || (SPRITES[m.id] = bakeBody(m)), k = s / SPR_S;
-  if (m.glow) { c.save(); c.shadowColor = typeof m.glow === 'function' ? m.glow() : m.glow; c.shadowBlur = 16; }
+  if (m.glow && !LITE) { c.save(); c.shadowColor = typeof m.glow === 'function' ? m.glow() : m.glow; c.shadowBlur = 16; }
   c.drawImage(spr.cv, -spr.cx * k, -spr.cy * k, spr.cv.width * k, spr.cv.height * k);
-  if (m.glow) c.restore();
+  if (m.glow && !LITE) c.restore();
   for (const fin of m.fins || []) if (fin.kind === 'pec') lpPectoral(c, fin, L, Hh, s, w, f);
   lpEye(c, m.eye[0] * L, m.eye[1] * Hh, m.eye[2] * s * e, m.eye[3]);
   if (m.extra) m.extra(c, s, w, f, L, Hh);

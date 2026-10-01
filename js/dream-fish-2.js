@@ -4,11 +4,13 @@
 // 用 WeakMap 記錄，不會被存進存檔裡
 const TRAILS = new WeakMap();
 function trailStep(f, dt, s) {
+  if (LITE) return; // 省電模式不畫痕跡
   let tr = TRAILS.get(f); if (!tr) TRAILS.set(f, tr = { t: 0, pts: [] });
   tr.t += dt; if (tr.t < .06) return; tr.t = 0;
   tr.pts.push([f.x - f.face * s * .55, f.y]); if (tr.pts.length > 12) tr.pts.shift();
 }
 function drawTrail(c, f, s, col, alpha) {
+  if (LITE) return;
   const tr = TRAILS.get(f); if (!tr) return;
   const n = tr.pts.length;
   tr.pts.forEach(([x, y], i) => {
