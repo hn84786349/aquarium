@@ -255,7 +255,7 @@ const ACTIONS = {
   fullscreen() { toggleFullscreen(); },
   cloudLogin() { Cloud.login(); },
   claimGift() { claimGift(); },
-  cycleLite() { const m = { auto: 'on', on: 'off', off: 'auto' }[liteMode()]; state.lite = m; updateLite(); toast(`🔋 省電模式：${{ auto: '自動', on: '一直開啟', off: '關閉' }[m]}`); },
+  cycleLite() { const m = { off: 'auto', auto: 'on', on: 'off' }[liteMode()]; state.lite = m; updateLite(); toast(`🔋 省電模式：${{ auto: '自動', on: '一直開啟', off: '關閉' }[m]}`); },
   toggleBig() { state.bigText = !state.bigText; applyBigText(); toast(`🔠 大字模式：${state.bigText ? '開' : '關'}`); },
   setTrack(id) { Music.setTrack(id); },
   toggleCoinFx() { state.coinFx = state.coinFx === false; if (!state.coinFx) coinFx = []; toast(`金幣特效：${state.coinFx ? '開' : '關'}`); },

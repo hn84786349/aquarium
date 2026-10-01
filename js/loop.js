@@ -2,9 +2,9 @@
 // ====== 主迴圈 ======
 let last = performance.now(), hudT = 0, saveT = 0, cloudT = 0, secT = 0, lastCoins = -1, lastFishN = -1, lastStars = -1;
 let lastFrame = 0;
-// 省電模式：auto（預設，魚超過 60 隻時自動開啟）／on（一直開）／off（關閉）
+// 省電模式：off（預設關閉）／auto（魚超過 60 隻時自動開啟）／on（一直開）
 const LITE_AUTO = 60;
-const liteMode = () => state.lite || 'auto';
+const liteMode = () => state.lite || 'off';
 function updateLite() {
   const want = liteMode() === 'on' || (liteMode() === 'auto' && state.fish.length > LITE_AUTO);
   if (want === LITE) return;
