@@ -621,7 +621,9 @@ const curIcon = star => star ? '⭐' : '💰';
 const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 18; // 每級 +5 隻，最多擴充到 100 隻
 // 到 50 隻以前維持輕鬆（每級 ×3.2）；50 隻以後每級 ×4.5，配合後期的魚價慢慢擴充
 const capCost = lv => lv < 8 ? Math.round(200 * Math.pow(3.2, lv) / 10) * 10 : nice(200 * Math.pow(3.2, 8) * Math.pow(4.5, lv - 8));
-const FEEDER_MAX = 5, feederCost = lv => 500 * Math.pow(4, lv), feederInterval = lv => 14 - 2 * lv;
+// 自動餵食器：Lv.1 每 12 秒一顆 → Lv.5 每 4 秒 → Lv.9 每 1 秒；Lv.5 以後每級價格 ×8
+const FEEDER_INT = [0, 12, 10, 8, 6, 4, 3, 2, 1.5, 1];
+const FEEDER_MAX = FEEDER_INT.length - 1, feederCost = lv => lv < 5 ? 500 * Math.pow(4, lv) : nice(128000 * Math.pow(8, lv - 4)), feederInterval = lv => FEEDER_INT[lv];
 const SNAIL_MAX = 5, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
 // Lv.4 起有兩隻蝸牛，一隻顧左半邊、一隻顧右半邊
 const snailCount = () => state.snailLv >= 4 ? 2 : state.snailLv > 0 ? 1 : 0;
