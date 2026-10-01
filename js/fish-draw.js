@@ -376,9 +376,7 @@ function drawSeaAngel(c, s, w, e, f) {
 function fishScale(f) { return getSp(f.sp).size * 1.4 * (0.45 + 0.55 * f.growth); }
 function drawFish(c, f, t, alpha = 1) {
   const sp = getSp(f.sp), s = fishScale(f);
-  // 沙地上的影子：離地越近越清楚
-  const hgt = clamp((FLOOR - f.y) / (FLOOR - TOP), 0, 1);
-  c.fillStyle = `rgba(0,0,0,${(.16 - hgt * .1) * alpha})`; ell(c, f.x, FLOOR + 14, s * (1.3 - hgt * .4), s * .18); c.fill();
+  // （原本沙地上有魚的影子；魚一多會疊成一條黑線，所以拿掉了）
   c.globalAlpha = alpha;
   if (sp.trail) drawTrail(c, f, s, sp.trail, alpha);
   if (sp.star && LITE) halo(c, f.x, f.y, s * 2.2, '#fff5c8', .25);
