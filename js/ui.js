@@ -146,8 +146,8 @@ function renderTab() {
           <button class="ghost" data-act="viewFish" data-arg="${f.id}">看</button><button data-act="sellFish" data-arg="${f.id}">賣 💰${fmt(sellPrice(f))}</button><button class="star" data-act="releaseFish" data-arg="${f.id}">放生 ⭐${releaseStars(f)}</button></div>`;
       }
       // 超過 10 隻的魚種：底下多兩個按鈕，一次賣掉或放生這一種魚（一樣要確認兩次）
-      if (list.length > 10) h += `<div class="row" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1" data-act="sellAll" data-arg="${sp.id}">💰 販賣全部${sp.name}（共 💰${fmt(list.reduce((a, f) => a + sellPrice(f), 0))}）</button>
-        <button class="ghost" style="flex:1" data-act="releaseAll" data-arg="${sp.id}">🌊 放生全部${sp.name}（共 ⭐${fmt(list.reduce((a, f) => a + releaseStars(f), 0))}）</button></div>`;
+      if (list.length > 10) h += `<div class="row" style="margin-top:10px;gap:8px"><button class="ghost" style="flex:1" data-act="sellAll" data-arg="${sp.id}">💰 販賣全部${sp.name}<span class="sub">（共 💰${fmt(list.reduce((a, f) => a + sellPrice(f), 0))}）</span></button>
+        <button class="ghost" style="flex:1" data-act="releaseAll" data-arg="${sp.id}">🌊 放生全部${sp.name}<span class="sub">（共 ⭐${fmt(list.reduce((a, f) => a + releaseStars(f), 0))}）</span></button></div>`;
       h += `</div>`;
     }
     if (state.fish.length) h += `<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:10px"><button class="ghost" data-act="sellAll">💰 販賣全部（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</button>
