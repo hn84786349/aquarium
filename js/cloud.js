@@ -260,25 +260,31 @@ function sellFish(id) {
   toast(`賣出 ${f.name}，獲得 💰${fmt(v)}`); if (selFishId === id) selFishId = null;
   updateFishCard(); renderTab();
 }
-// 一次賣掉所有魚（夢幻魚不算）：要確認兩次，避免不小心點到
-async function sellAll() {
-  const n = state.fish.length; if (!n) return;
-  const total = () => state.fish.reduce((a, f) => a + sellPrice(f), 0);
-  if (!await ask(`確定要賣掉水族箱裡全部 ${n} 隻魚嗎？\n可以得到 💰${fmt(total())}`, '要賣掉', '取消')) return;
-  if (!await ask(`再確認一次：全部 ${n} 隻魚賣掉後就回不來了喔！\n真的要全部賣掉嗎？`, '確定全部賣掉', '我再想想')) return;
-  const v = total(), cnt = state.fish.length; state.coins += v; state.fish = []; selFishId = null;
-  toast(`賣出全部 ${cnt} 隻魚，獲得 💰${fmt(v)}`); updateFishCard(); renderTab(); save();
+// 一次賣掉／放生很多魚（夢幻魚不算）：要確認兩次，避免不小心點到
+// spId 有給就只處理那一種魚（我的魚頁面超過 10 隻的魚種底下的按鈕），沒給就是全部的魚
+function bulkTargets(spId) {
+  const list = spId ? state.fish.filter(f => f.sp === spId) : state.fish.slice();
+  const what = spId ? SP[spId].name : '魚', shiny = list.filter(f => f.shiny).length;
+  return { list, what, warn: shiny ? `\n（其中有 ${shiny} 隻是✨稀有色）` : '' };
 }
-// 一次放生所有魚（夢幻魚不算）：一樣要確認兩次
-async function releaseAll() {
-  const n = state.fish.length; if (!n) return;
-  const total = () => state.fish.reduce((a, f) => a + releaseStars(f), 0);
-  if (!await ask(`確定要放生水族箱裡全部 ${n} 隻魚嗎？\n可以得到 ⭐${fmt(total())}`, '要放生', '取消')) return;
-  if (!await ask(`再確認一次：全部 ${n} 隻魚放生後就回不來了喔！\n真的要全部放生嗎？`, '確定全部放生', '我再想想')) return;
-  const st = total(), cnt = state.fish.length;
-  state.stars += st; state.starEarned += st; state.stats.released += cnt; taskProg('release', cnt);
-  for (const f of state.fish) releasing.push({ f, life: 1.6 });
-  state.fish = []; selFishId = null;
-  toast(`🌊 全部 ${cnt} 隻魚回到大海了，獲得 ⭐${fmt(st)}`); updateFishCard(); renderTab(); save();
+async function sellAll(spId) {
+  const { list, what, warn } = bulkTargets(spId), n = list.length; if (!n) return;
+  const total = list.reduce((a, f) => a + sellPrice(f), 0);
+  if (!await ask(`確定要賣掉全部 ${n} 隻${what}嗎？\n可以得到 💰${fmt(total)}${warn}`, '要賣掉', '取消')) return;
+  if (!await ask(`再確認一次：全部 ${n} 隻${what}賣掉後就回不來了喔！\n真的要全部賣掉嗎？`, '確定全部賣掉', '我再想想')) return;
+  const now = list.filter(f => state.fish.includes(f)), v = now.reduce((a, f) => a + sellPrice(f), 0);
+  state.coins += v; state.fish = state.fish.filter(f => !now.includes(f)); if (now.some(f => f.id === selFishId)) selFishId = null;
+  toast(`賣出 ${now.length} 隻${what}，獲得 💰${fmt(v)}`); updateFishCard(); renderTab(); save();
+}
+async function releaseAll(spId) {
+  const { list, what, warn } = bulkTargets(spId), n = list.length; if (!n) return;
+  const total = list.reduce((a, f) => a + releaseStars(f), 0);
+  if (!await ask(`確定要放生全部 ${n} 隻${what}嗎？\n可以得到 ⭐${fmt(total)}${warn}`, '要放生', '取消')) return;
+  if (!await ask(`再確認一次：全部 ${n} 隻${what}放生後就回不來了喔！\n真的要全部放生嗎？`, '確定全部放生', '我再想想')) return;
+  const now = list.filter(f => state.fish.includes(f)), st = now.reduce((a, f) => a + releaseStars(f), 0);
+  state.stars += st; state.starEarned += st; state.stats.released += now.length; taskProg('release', now.length);
+  for (const f of now) releasing.push({ f, life: 1.6 });
+  state.fish = state.fish.filter(f => !now.includes(f)); if (now.some(f => f.id === selFishId)) selFishId = null;
+  toast(`🌊 ${now.length} 隻${what}回到大海了，獲得 ⭐${fmt(st)}`); updateFishCard(); renderTab(); save();
 }
 
