@@ -30,6 +30,7 @@ const ACHS = [
   { id: 'earn5', icon: '👑', name: '龍宮財神', desc: '累計賺到 1 兆金幣', test: () => state.earned >= 1e12, stars: 300 },
   { id: 'fish20', icon: '🐟', name: '熱鬧的水族箱', desc: '水族箱養到 20 隻魚', test: () => state.fish.length >= 20, stars: 10 },
   { id: 'fish50', icon: '🐠', name: '滿滿的水族箱', desc: '水族箱養滿 50 隻魚', test: () => state.fish.length >= 50, stars: 50 },
+  { id: 'fish100', icon: '🐋', name: '海洋大家族', desc: '水族箱養滿 100 隻魚', test: () => state.fish.length >= 100, stars: 200 },
   { id: 'born10', icon: '🍼', name: '育兒新手', desc: '累計生出 10 隻小魚', test: () => state.stats.born >= 10, stars: 10 },
   { id: 'born100', icon: '🍼', name: '育兒達人', desc: '累計生出 100 隻小魚', test: () => state.stats.born >= 100, stars: 60 },
   { id: 'rel10', icon: '🌊', name: '回歸大海', desc: '累計放生 10 隻魚', test: () => state.stats.released >= 10, stars: 10 },

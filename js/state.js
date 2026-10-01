@@ -67,7 +67,7 @@ function load(fromCode) {
       for (const id of state.starOwned) state.dex.seen[id] = 1;
       if (!BG[state.bg]) state.bg = 'fresh';
       if (!FD[state.food]) state.food = 'basic';
-      // 容量上限改回 50 隻：之前多擴充的等級退還金幣
+      // 超過容量上限的等級退還金幣（上限曾經從 100 改回 50，現在又開放到 100）
       for (; state.capLv > CAP_MAX_LV; state.capLv--) state.coins += nice(200 * Math.pow(3.2, 8) * Math.pow(2.5, state.capLv - 9));
       return;
     }

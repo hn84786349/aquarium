@@ -115,7 +115,7 @@ h4{margin:16px 0 8px;font-size:16px;color:var(--muted)}
 /* 魚店的數量框：往下滑時固定在最上面 */
 .capBox.sticky{position:sticky;top:-8px;z-index:5;box-shadow:0 -6px 0 6px var(--panel),0 6px 12px rgba(0,0,0,.45)}
 .card small.own b{color:var(--accent)}
-.card button .sub{display:block;font-size:14px;opacity:.85;pointer-events:none}
+button .sub{display:block;font-size:14px;opacity:.85;pointer-events:none}
 .buyCol{display:flex;flex-direction:column;gap:6px;flex:none}
 .buyCol button{white-space:nowrap}
 .card small .relstar{color:#fff27a;white-space:nowrap}

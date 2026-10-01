@@ -618,9 +618,9 @@ function sceneThumb(p, lv) {
 const newScene = () => Object.fromEntries(SCENE.map(p => [p.id, { lv: 0, look: 0 }]));
 const curIcon = star => star ? '⭐' : '💰';
 
-const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 8; // 最多擴充到 50 隻
-// 設備價格配合魚價稍微調高，但維持輕鬆：最貴的擴充約是中後期一隻魚的價格
-const capCost = lv => Math.round(200 * Math.pow(3.2, lv) / 10) * 10;
+const CAP_BASE = 10, CAP_STEP = 5, CAP_MAX_LV = 18; // 每級 +5 隻，最多擴充到 100 隻
+// 到 50 隻以前維持輕鬆（每級 ×3.2）；50 隻以後每級 ×4.5，配合後期的魚價慢慢擴充
+const capCost = lv => lv < 8 ? Math.round(200 * Math.pow(3.2, lv) / 10) * 10 : nice(200 * Math.pow(3.2, 8) * Math.pow(4.5, lv - 8));
 const FEEDER_MAX = 5, feederCost = lv => 500 * Math.pow(4, lv), feederInterval = lv => 14 - 2 * lv;
 const SNAIL_MAX = 5, snailCost = lv => 1500 * Math.pow(6, lv), snailSpeed = lv => 25 + 30 * lv;
 // Lv.4 起有兩隻蝸牛，一隻顧左半邊、一隻顧右半邊

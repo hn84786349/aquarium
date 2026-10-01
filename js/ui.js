@@ -150,8 +150,8 @@ function renderTab() {
         <button class="ghost" style="flex:1" data-act="releaseAll" data-arg="${sp.id}">🌊 放生全部${sp.name}<span class="sub">（共 ⭐${fmt(list.reduce((a, f) => a + releaseStars(f), 0))}）</span></button></div>`;
       h += `</div>`;
     }
-    if (state.fish.length) h += `<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:10px"><button class="ghost" data-act="sellAll">💰 販賣全部（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</button>
-      <button class="ghost" data-act="releaseAll">🌊 放生全部（${state.fish.length} 隻，共 ⭐${fmt(state.fish.reduce((a, f) => a + releaseStars(f), 0))}）</button></div>`;
+    if (state.fish.length) h += `<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:10px"><button class="ghost" data-act="sellAll">💰 販賣全部的魚<span class="sub">（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</span></button>
+      <button class="ghost" data-act="releaseAll">🌊 放生全部的魚<span class="sub">（${state.fish.length} 隻，共 ⭐${fmt(state.fish.reduce((a, f) => a + releaseStars(f), 0))}）</span></button></div>`;
   } else if (['dex', 'ach', 'daily'].includes(tab)) {
     h += renderCollect();
   } else if (tab === 'settings') {
