@@ -142,7 +142,7 @@ function update(dt) {
     else { t.age += dt; if (t.age > 120) state.treasures.splice(i, 1); }
   }
   // 自動餵食器
-  if (state.feederLv > 0) {
+  if (state.feederLv > 0 && !state.feederOff) { // 可以在設備頁暫時關閉
     feederT += dt;
     if (feederT >= feederInterval(state.feederLv)) {
       feederT = 0; const fd = FD[state.food];

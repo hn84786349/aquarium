@@ -101,7 +101,8 @@ function renderTab() {
     h += `<div class="card"><div class="ico">🫙</div><div class="info"><b>擴充水族箱</b><small>容量 ${capacity()} 隻${state.capLv < CAP_MAX_LV ? ` → ${capacity() + CAP_STEP} 隻` : '（已達上限）'}</small></div>
       ${state.capLv < CAP_MAX_LV ? costBtn('buyCap', '', capCost(state.capLv), '擴充') : '<button disabled>MAX</button>'}</div>`;
     h += `<div class="card"><div class="ico">🤖</div><div class="info"><b>自動餵食器 Lv.${state.feederLv}</b><small>${state.feederLv ? `有魚肚子餓時，每 ${feederInterval(state.feederLv)} 秒自動投放目前選擇的飼料` : '有魚肚子餓時自動投放飼料（會扣飼料錢）'}</small>${state.feederLv < FEEDER_MAX ? `<small>下一級：每 ${feederInterval(state.feederLv + 1)} 秒一顆</small>` : ''}</div>
-      ${state.feederLv < FEEDER_MAX ? costBtn('buyFeeder', '', feederCost(state.feederLv), state.feederLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
+      <div class="buyCol">${state.feederLv ? `<button class="${state.feederOff ? 'ghost' : 'on'}" data-act="toggleFeeder">${state.feederOff ? '⏸️ 已關閉' : '▶️ 開啟中'}</button>` : ''}
+      ${state.feederLv < FEEDER_MAX ? costBtn('buyFeeder', '', feederCost(state.feederLv), state.feederLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div></div>`;
     h += `<div class="card"><div class="ico">🐌</div><div class="info"><b>撿寶蝸牛 Lv.${state.snailLv}</b><small>${state.snailLv ? `自動去撿沉在沙上的寶物（速度 ${snailSpeed(state.snailLv)}${snailCount() > 1 ? '，兩隻分左右邊' : ''}）` : '幫你自動撿沙地上的寶物'}</small>${state.snailLv > 0 && state.snailLv < 4 ? '<small>Lv.4 起會多一隻蝸牛</small>' : ''}</div>
       ${state.snailLv < SNAIL_MAX ? costBtn('buySnail', '', snailCost(state.snailLv), state.snailLv ? '升級' : '購買') : '<button disabled>MAX</button>'}</div>`;
     for (const k in EQUIP) {
@@ -228,6 +229,7 @@ const ACTIONS = {
   dexFlip(id) { DEX_VIEW[id] = ((DEX_VIEW[id] || 0) + 1) % DEX_KINDS.length; },
   buyFishMax(id) { buyFishN(id, Infinity); },
   buyCap() { if (state.capLv < CAP_MAX_LV && pay(capCost(state.capLv))) { state.capLv++; toast(`水族箱擴充到 ${capacity()} 隻！`); } },
+  toggleFeeder() { state.feederOff = !state.feederOff; toast(`🤖 自動餵食器：${state.feederOff ? '關閉' : '開啟'}`); },
   buyFeeder() { if (state.feederLv < FEEDER_MAX && pay(feederCost(state.feederLv))) { state.feederLv++; toast(`自動餵食器 Lv.${state.feederLv}`); } },
   buySnail() { if (state.snailLv < SNAIL_MAX && pay(snailCost(state.snailLv))) { state.snailLv++; if (state.snailLv === 4) snails[1].x = W * .75; toast(state.snailLv === 4 ? '🐌 撿寶蝸牛 Lv.4，多了一隻蝸牛幫忙！' : `撿寶蝸牛 Lv.${state.snailLv}`); } },
   buyEquip(k) {

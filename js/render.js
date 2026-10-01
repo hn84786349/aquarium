@@ -259,7 +259,7 @@ function render() {
   for (let i = 0; i < snailCount(); i++) {
     const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);
   }
-  if (state.feederLv > 0) emoji(ctx, '🤖', W - 30, 26, 26);
+  if (state.feederLv > 0 && !state.feederOff) emoji(ctx, '🤖', W - 30, 26, 26);
   for (const f of coinFx) {
     if (f.t < 0) continue;
     const q = f.t / f.dur, e = q * q * (3 - 2 * q), x = f.x0 + (40 - f.x0) * e, y = f.y0 + (-10 - f.y0) * e - Math.sin(Math.PI * q) * 90;
