@@ -245,25 +245,25 @@ function render() {
     ctx.globalAlpha = 1;
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  for (const t of state.treasures) {
+  // 戳泡泡時畫面只留泡泡：寶物、魚、訪客、蝸牛和飛向左上角的金幣都先不畫（背後一樣照常運作）
+  if (!POP.on) for (const t of state.treasures) {
     const y = t.y + (t.landed ? Math.sin(T * 2 + t.bob) * 1.5 : 0);
     ctx.globalAlpha = t.age > 110 ? (120 - t.age) / 10 : 1;
     ctx.drawImage(treasureSprite(TREASURE[t.type].icon), t.x - 22, y - 22, 44, 44);
     ctx.globalAlpha = 1;
   }
-  // 玩戳泡泡的時候先不畫魚（魚還是照常在背後游動、產寶物）
   if (!POP.on) {
     const sorted = state.fish.slice().sort((a, b) => a.growth - b.growth);
     for (const f of sorted) drawFish(ctx, f, T);
     for (const f of starFish) drawFish(ctx, f, T);
     for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
   }
-  drawVisitor();
-  for (let i = 0; i < snailCount(); i++) {
+  if (!POP.on) drawVisitor();
+  if (!POP.on) for (let i = 0; i < snailCount(); i++) {
     const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);
   }
   if (state.feederLv > 0 && !state.feederOff) emoji(ctx, '🤖', W - 30, 26, 26);
-  for (const f of coinFx) {
+  if (!POP.on) for (const f of coinFx) {
     if (f.t < 0) continue;
     const q = f.t / f.dur, e = q * q * (3 - 2 * q), x = f.x0 + (40 - f.x0) * e, y = f.y0 + (-10 - f.y0) * e - Math.sin(Math.PI * q) * 90;
     drawCoin(ctx, x, y, 11 + f.tier * 2, f.tier, f.spin);

@@ -10,6 +10,7 @@ function collectTreasure(t) {
   state.treasures.splice(i, 1);
   const v = Math.round(TREASURE[t.type].value * (t.mult || 1) * B.value);
   state.coins += v; state.earned += v; taskProg('collect');
+  if (POP.on) return; // 戳泡泡時蝸牛在背後撿寶物，不顯示金幣特效
   // 寶物變成金幣：價值越高，金幣越多、顏色從銅 → 銀 → 金
   const tier = v < 40 ? 0 : v < 400 ? 1 : 2, n = [2, 3, 5][tier];
   // 金幣飛向左上角的特效（可以在設定裡關掉；關掉時左上角的金幣數字直接跳一下）

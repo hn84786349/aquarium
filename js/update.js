@@ -17,7 +17,7 @@ function updateStarFish(f, dt) {
   f.vx += (dx / d * sp.speed - f.vx) * k; f.vy += (dy / d * sp.speed * .6 - f.vy) * k;
   f.x = clamp(f.x + f.vx * dt, 40, W - 40); f.y = clamp(f.y + f.vy * dt, TOP + 10, FLOOR - 30);
   if (f.vx > 8) f.face = 1; else if (f.vx < -8) f.face = -1;
-  if (Math.random() < dt * 1.5) particles.push({ x: f.x + rand(-20, 20), y: f.y + rand(-15, 15), vy: -rand(8, 20), life: 1, icon: '✨' });
+  if (!POP.on && Math.random() < dt * 1.5) particles.push({ x: f.x + rand(-20, 20), y: f.y + rand(-15, 15), vy: -rand(8, 20), life: 1, icon: '✨' });
   f.dropT -= dt * B.drop;
   if (f.dropT <= 0) {
     f.dropT = sp.dropEvery * rand(.8, 1.2);
