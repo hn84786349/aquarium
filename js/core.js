@@ -16,10 +16,11 @@ const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans
 const $ = s => document.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-// 大數字改用「億」「兆」「京」「垓」表示，比較好讀（例如 3.8億）
+// 大數字的單位：億、兆，再上去用英文字母 A、B、C…（跟億、兆一樣，每一級是前一級的一萬倍）
+// 例如 3.8億、120兆、16.4A（= 16.4 萬兆）、52.5B
 const fmt = n => {
   n = Math.floor(n); if (n < 1e8) return n.toLocaleString('zh-TW');
-  const [d, u] = n < 1e12 ? [1e8, '億'] : n < 1e16 ? [1e12, '兆'] : n < 1e20 ? [1e16, '京'] : [1e20, '垓'], v = n / d;
+  const k = Math.min(27, Math.floor(Math.log10(n) / 4) - 2), d = Math.pow(10, 8 + 4 * k), u = k === 0 ? '億' : k === 1 ? '兆' : String.fromCharCode(63 + k), v = n / d;
   return (v < 100 ? +v.toFixed(2) : v < 1000 ? +v.toFixed(1) : Math.floor(v).toLocaleString('zh-TW')) + u;
 };
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
