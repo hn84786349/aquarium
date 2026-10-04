@@ -251,10 +251,13 @@ function render() {
     ctx.drawImage(treasureSprite(TREASURE[t.type].icon), t.x - 22, y - 22, 44, 44);
     ctx.globalAlpha = 1;
   }
-  const sorted = state.fish.slice().sort((a, b) => a.growth - b.growth);
-  for (const f of sorted) drawFish(ctx, f, T);
-  for (const f of starFish) drawFish(ctx, f, T);
-  for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
+  // 玩戳泡泡的時候先不畫魚（魚還是照常在背後游動、產寶物）
+  if (!POP.on) {
+    const sorted = state.fish.slice().sort((a, b) => a.growth - b.growth);
+    for (const f of sorted) drawFish(ctx, f, T);
+    for (const f of starFish) drawFish(ctx, f, T);
+    for (const r of releasing) drawFish(ctx, r.f, T, clamp(r.life / 1.6, 0, 1));
+  }
   drawVisitor();
   for (let i = 0; i < snailCount(); i++) {
     const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);

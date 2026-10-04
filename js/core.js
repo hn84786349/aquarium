@@ -16,10 +16,10 @@ const EMOJI_FONT = '"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans
 const $ = s => document.querySelector(s);
 const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-// 大數字改用「億」「兆」「京」表示，比較好讀（例如 3.8億）
+// 大數字改用「億」「兆」「京」「垓」表示，比較好讀（例如 3.8億）
 const fmt = n => {
   n = Math.floor(n); if (n < 1e8) return n.toLocaleString('zh-TW');
-  const [d, u] = n < 1e12 ? [1e8, '億'] : n < 1e16 ? [1e12, '兆'] : [1e16, '京'], v = n / d;
+  const [d, u] = n < 1e12 ? [1e8, '億'] : n < 1e16 ? [1e12, '兆'] : n < 1e20 ? [1e16, '京'] : [1e20, '垓'], v = n / d;
   return (v < 100 ? +v.toFixed(2) : v < 1000 ? +v.toFixed(1) : Math.floor(v).toLocaleString('zh-TW')) + u;
 };
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
