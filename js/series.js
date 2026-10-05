@@ -61,14 +61,30 @@ function checkSeries() {
   } else ask(`📚 系列收集獎勵\n\n${got.map(({ se, st, s }) => `${se.icon}${se.name}「${st.label}」⭐${fmt(s)}`).join('\n')}\n\n加成已經生效，可以到「收藏 → 📚 系列」查看。`, '好', null);
   if (menuOpen && tab === 'series') renderTab();
 }
+// 點系列裡的魚：跳到商店那隻魚的購買卡片，並用醒目的框框起來（約 4 秒）
+let shopFocus = null, shopFocusT = 0;
+Object.assign(ACTIONS, {
+  seriesGo(id) {
+    const sp = SP[id]; if (!sp) return;
+    if (sp.tier > shopLimit()) return toast(`🔒 ${sp.name}還沒出現在商店，買到更高級的魚就會慢慢解鎖`);
+    shopFocus = id; clearTimeout(shopFocusT); setTab('shop');
+    // 捲到卡片剛好在上方「水族箱數量」欄的下面，金色框才不會被擋住
+    setTimeout(() => {
+      const el = document.getElementById('shop-' + id); if (!el) return;
+      const cap = tabEl.querySelector('.capBox'), capH = cap ? cap.offsetHeight + 14 : 8;
+      tabEl.scrollTo({ top: tabEl.scrollTop + el.getBoundingClientRect().top - tabEl.getBoundingClientRect().top - capH, behavior: 'smooth' });
+    }, 60);
+    shopFocusT = setTimeout(() => { shopFocus = null; const el = document.getElementById('shop-' + id); if (el) el.classList.remove('focus'); }, 4000);
+  },
+});
 function renderSeries() {
   const doneN = seriesDone().length, total = SERIES.length * SERIES_STAGES.length, g = seriesGlobal();
   let h = `<div class="bonus">已完成 <b>${doneN} / ${total}</b> 個階段${g ? `　全部的魚寶物 <b>+${Math.round(g * 100)}%</b>` : ''}<br>
-    圖鑑「看過」就算收集到；看過金色或白色就算稀有色。收集和稀有色是分開算的，可以各自先拿到獎勵。</div>`;
+    圖鑑「看過」就算收集到；看過金色或白色就算稀有色。收集和稀有色是分開算的，可以各自先拿到獎勵。<br>👆 點魚的小圖，可以直接跳到商店購買那種魚。</div>`;
   for (const se of SERIES) {
     const a = seriesCount(se, 'a'), b = seriesCount(se, 'b'), n = se.ids.length, mul = seriesMul(se.ids[0]), sr = shinyRate(se.ids[0]);
     h += `<div class="card" style="flex-direction:column;align-items:stretch"><div class="row"><b style="flex:1">${se.icon} ${se.name}</b>${seriesHas(se, 'b100') ? `<small style="color:var(--accent)">🏅 ${se.title}</small>` : ''}</div>
-      <div class="dexMini">${se.ids.map(id => `<span class="${state.dex.seen[id] ? '' : 'unk'}"><img src="${state.dex.shiny[id] ? shinyPrev(SP[id], state.dex.shiny[id]) : PREV[id]}" alt="">${state.dex.shiny[id] ? '<i>✨</i>' : ''}</span>`).join('')}</div>
+      <div class="dexMini">${se.ids.map(id => `<span class="${state.dex.seen[id] ? '' : 'unk'}" data-act="seriesGo" data-arg="${id}" role="button"><img src="${state.dex.shiny[id] ? shinyPrev(SP[id], state.dex.shiny[id]) : PREV[id]}" alt="">${state.dex.shiny[id] ? '<i>✨</i>' : ''}</span>`).join('')}</div>
       <small>📖 收集 ${a}/${n}<div class="bar"><i style="width:${a / n * 100}%;background:var(--accent)"></i></div></small>
       <small>✨ 稀有色 ${b}/${n}<div class="bar"><i style="width:${b / n * 100}%;background:#ffd860"></i></div></small>
       <div class="stages">${SERIES_STAGES.map(st => { const ok = seriesHas(se, st.key), left = seriesNeed(se, st.pct) - seriesCount(se, st.kind);

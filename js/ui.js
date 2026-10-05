@@ -87,7 +87,7 @@ function renderTab() {
     const lim = shopLimit(), hidden = SPECIES.length - 1 - lim;
     for (const sp of SPECIES) {
       if (sp.tier > lim) break;
-      h += `<div class="card"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
+      h += `<div class="card ${shopFocus === sp.id ? 'focus' : ''}" id="shop-${sp.id}"><img src="${PREV[sp.id]}" alt=""><div class="info"><b>${sp.name}</b><small>${sp.desc}</small>
         <small class="own">持有：<b>${state.fish.filter(f => f.sp === sp.id).length}</b> 隻　<span class="relstar">成魚放生 ⭐${sp.stars}</span></small>
         <small>產出：${sp.pool.map(([t]) => TREASURE[t].icon).join(' ')}　長大約 ${fmtTime(sp.growTime)}</small><small>${coinNote(sp.pool, sp.dropEvery, sp.mult)}</small></div>
         <div class="buyCol">${costBtn('buyFish', sp.id, sp.price, '購買', 'data-space="1"')}
