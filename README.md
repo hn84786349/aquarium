@@ -42,6 +42,7 @@
 | `js/ui.js` | 選單與各分頁畫面 |
 | `js/features.js` | 圖鑑、成就、每日任務、拍照、改名、訪客、節日 |
 | `js/star-shop.js` | 星星小舖：限時藥水、蝸牛造型 |
+| `js/series.js` | 系列收集獎勵（9 個系列，收集與稀有色各三階段） |
 | `js/loop.js` | 主迴圈與離線收益 |
 | `js/music.js` | 背景音樂 |
 | `js/main.js` | 遊戲啟動 |

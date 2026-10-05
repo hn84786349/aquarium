@@ -42,7 +42,7 @@ $('#menuBack').onclick = () => { if (performance.now() - menuOpenedAt > 450) clo
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && menuOpen) closeMenu(); });
 // 上層分頁：商店（魚、夢幻魚、設備・造景、背景）／我的魚
 function setTab(t) {
-  const top = t === 'mine' || t === 'settings' ? t : ['dex', 'ach', 'daily'].includes(t) ? 'collect' : 'store';
+  const top = t === 'mine' || t === 'settings' ? t : ['dex', 'series', 'ach', 'daily'].includes(t) ? 'collect' : 'store';
   tab = t; if (top === 'store') storeTab = t; if (top === 'collect') collectTab = t;
   document.querySelectorAll('#tabs button, #tabs2 button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('#topTabs button').forEach(b => b.classList.toggle('on', b.dataset.top === top));
@@ -153,6 +153,8 @@ function renderTab() {
     }
     if (state.fish.length) h += `<div class="row" style="margin-top:16px;flex-direction:column;align-items:stretch;gap:10px"><button class="ghost" data-act="sellAll">💰 販賣全部的魚<span class="sub">（${state.fish.length} 隻，共 💰${fmt(state.fish.reduce((a, f) => a + sellPrice(f), 0))}）</span></button>
       <button class="ghost" data-act="releaseAll">🌊 放生全部的魚<span class="sub">（${state.fish.length} 隻，共 ⭐${fmt(state.fish.reduce((a, f) => a + releaseStars(f), 0))}）</span></button></div>`;
+  } else if (tab === 'series') {
+    h += renderSeries();
   } else if (['dex', 'ach', 'daily'].includes(tab)) {
     h += renderCollect();
   } else if (tab === 'settings') {
@@ -162,7 +164,7 @@ function renderTab() {
       <button data-act="cycleLite">🔋 省電模式：<b>${{ auto: `自動（魚超過 ${LITE_AUTO} 隻時開啟）`, on: '一直開啟', off: '關閉' }[liteMode()]}</b><span class="sub">目前${LITE ? '已開啟：魚鰭和彩帶畫得比較簡單、不畫光暈閃光和痕跡、畫面解析度稍低' : '沒有開啟'}・點一下切換</span></button></div>`;
     h += `<h4>🎵 背景音樂</h4><div ${col}>${Object.entries(Music.tracks).map(([id, t]) => `<button class="${Music.track() === id ? 'on' : 'ghost'}" data-act="setTrack" data-arg="${id}">${t.name}<small style="display:block;font-size:13px;${Music.track() === id ? 'opacity:.75' : 'color:var(--muted)'}">${t.desc}${Music.track() === id ? '（目前播放）' : ''}</small></button>`).join('')}</div>`;
     h += `<h4>💾 存檔備份</h4>${persistNote()}<div ${col}><button data-act="exportSave">📤 匯出存檔（換網址或換手機用）</button><button data-act="importSave">📥 匯入存檔</button></div>`;
-    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻以上吃飽（飽食度 40% 以上）就會開始繁殖倒數，時間到大家一起生：1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻（空位不夠時會少生）。倒數時間跟對數無關，城堡等造景和繁殖燈可以縮短。<br>・離線時也會繁殖，但每一對最多生一隻，小魚要回來餵才會長大。小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！<br>・「🔍 查看」時點魚會摸摸牠，魚會開心轉一圈。常摸、常餵的魚親密度會變高（最多 5 顆心），每顆心寶物價值 +2%；3 顆心以上的魚，在查看模式按住水族箱會游過來找你。<br>・右上角 🫧 每 10 分鐘可以玩一次「戳泡泡」，30 秒內點破泡泡拿金幣（有紅點代表可以玩）。<br>・數字的單位：萬 → 億 → 兆 → A → B → C…，每一級都是前一級的一萬倍（1A = 1 萬兆）。<br>・「設定」可以換背景音樂、打開大字模式；魚很多覺得卡的時候，可以打開省電模式。</div>`;
+    h += `<h4>🎮 玩法說明</h4><div class="bonus">・點水族箱投放飼料；右上角「🍤 餵食」按鈕可以換飼料，或切換成「🔍 查看」。<br>・點或滑過寶物就能撿起來換金幣。<br>・「🔍 查看」時點魚可以看狀態、賣出或放生（放生可以得到⭐星星）。<br>・同種的成魚兩隻以上吃飽（飽食度 40% 以上）就會開始繁殖倒數，時間到大家一起生：1～3 對生 1 隻、4～5 對生 2 隻、6～7 對生 3 隻、8～9 對生 4 隻、10 對以上生 5 隻（空位不夠時會少生）。倒數時間跟對數無關，城堡等造景和繁殖燈可以縮短。<br>・離線時也會繁殖，但每一對最多生一隻，小魚要回來餵才會長大。小魚吃飼料會長大。<br>・「🔍 查看」時點沙地上的造景可以升級或換外觀。<br>・星星可以在「商店 → ⭐夢幻魚」兌換夢幻生物。<br>・右上角 🎁 每天可以領禮物，還有 3 個每日任務。<br>・📸 可以幫水族箱拍照，分享給家人。<br>・偶爾會有神秘訪客游過，點牠會送禮物喔！<br>・「🔍 查看」時點魚會摸摸牠，魚會開心轉一圈。常摸、常餵的魚親密度會變高（最多 5 顆心），每顆心寶物價值 +2%；3 顆心以上的魚，在查看模式按住水族箱會游過來找你。<br>・右上角 🫧 每 10 分鐘可以玩一次「戳泡泡」，30 秒內點破泡泡拿金幣（有紅點代表可以玩）。<br>・「收藏 → 📚 系列」：85 種魚分成 9 個系列，圖鑑看過就算收集；收集和稀有色各有 25%、50%、100% 三個階段，達成會自動得到星星和寶物加成，稀有色階段還會提高該系列生出稀有色的機率。<br>・數字的單位：萬 → 億 → 兆 → A → B → C…，每一級都是前一級的一萬倍（1A = 1 萬兆）。<br>・「設定」可以換背景音樂、打開大字模式；魚很多覺得卡的時候，可以打開省電模式。</div>`;
     h += `<h4>⚠️ 重新開始</h4><div ${col}><button class="ghost" data-act="reset">↺ 重新開始（清除所有進度）</button></div>`;
   }
   else if (tab === 'star') {

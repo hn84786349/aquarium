@@ -79,7 +79,7 @@ function updateFish(f, dt) {
         f.dropT = sp.dropEvery * rand(.8, 1.2);
         const ev = eventTreasure(sp), type = ev ? ev.type : weighted(sp.pool);
         // 親密度每一顆心寶物價值 +2%（最多 +10%）
-        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: (ev ? ev.mult : sp.mult) * (f.shiny ? 3 : 1) * (1 + .02 * hearts(f)), vy: 0, landed: false, age: 0, bob: rand(0, 6) });
+        state.treasures.push({ x: f.x, y: f.y + s * .3, type, mult: (ev ? ev.mult : sp.mult) * (f.shiny ? 3 : 1) * (1 + .02 * hearts(f)) * seriesMul(sp.id), vy: 0, landed: false, age: 0, bob: rand(0, 6) });
       }
     }
   }
@@ -104,7 +104,7 @@ function updateBreeding(dt) {
         for (let k = 0; k < 6; k++) particles.push({ x: x + rand(-20, 20), y: y + rand(-10, 10), vy: -rand(20, 45), life: 1.6, icon: '💗' });
         if (n === 1) floatText(x, y - 25, `${sp.name}寶寶「${baby.name}」誕生了！`, '#ffb3d9');
         // 小機率生出稀有色（金色／白色）的小魚
-        if (Math.random() < SHINY_RATE) {
+        if (Math.random() < shinyRate(sp.id)) { // 系列收集的稀有色階段會提高機率
           baby.shiny = Math.random() < .5 ? 'gold' : 'white'; shinies.push(baby);
           for (let k = 0; k < 12; k++) particles.push({ x: x + rand(-30, 30), y: y + rand(-20, 20), vy: -rand(20, 60), life: 2, icon: '✨' });
         }

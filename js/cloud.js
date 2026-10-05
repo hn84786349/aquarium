@@ -241,6 +241,7 @@ function updateFishCard() {
   }
   const sp = SP[f.sp];
   el.innerHTML = `<b>${f.shiny ? '✨' : ''}${f.name}</b>　<small>${f.shiny ? SHINY_NAME[f.shiny] : ''}${sp.name}・${stageName(f)}</small><button class="ghost mini" data-rename="${f.id}">✏️ 改名</button>
+    ${SERIES_OF[sp.id] ? `<div><small style="color:var(--muted)">📚 ${SERIES_OF[sp.id].icon}${SERIES_OF[sp.id].name}${seriesMul(sp.id) > 1 ? `・寶物 +${Math.round((seriesMul(sp.id) - 1) * 100)}%` : ''}</small></div>` : ''}
     <div>親密度 ${heartStr(f)} <small>${Math.floor(f.love || 0)}/100${hearts(f) ? `・寶物 +${hearts(f) * 2}%` : ''}</small></div>
     <div>飽食度 ${Math.round(f.hunger)}%<div class="bar"><i style="width:${f.hunger}%;background:${f.hunger < 30 ? 'var(--bad)' : 'var(--good)'}"></i></div></div>
     <div style="margin-top:4px">${f.growth >= 1 ? `下次產寶：約 ${Math.max(0, Math.ceil(f.dropT / B.drop))} 秒` : `成長 ${Math.floor(f.growth * 100)}%（飼料加速 ×${f.foodMult}）`}

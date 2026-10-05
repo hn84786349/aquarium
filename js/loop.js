@@ -32,7 +32,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch(); updatePopDot(); potionTick(); updateLite();
+    secT = 0; checkAch(); checkSeries(); updatePopDot(); potionTick(); updateLite();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }
@@ -45,7 +45,7 @@ function frame(now) {
 const OFFLINE_RATE = 0.3;
 function incomePerSec() {
   let v = 0;
-  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery * (f.shiny ? 3 : 1); }
+  for (const f of state.fish) if (f.growth >= 1) { const sp = SP[f.sp]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery * (f.shiny ? 3 : 1) * seriesMul(sp.id); }
   for (const id of state.starShown) { const sp = SSP[id]; v += avgTreasure(sp.pool) * sp.mult / sp.dropEvery; }
   return v * B.value * B.drop;
 }
@@ -67,7 +67,7 @@ function offlineBreed(sec) {
     state.breedT[sp.id] = Math.min(prog - rounds * sp.breedTime, sp.breedTime * .99);
     for (let i = 0; i < n; i++) {
       const a = el[i * 2], baby = spawnFish(sp.id, a.x + rand(-20, 20), a.y + rand(-15, 15), nurseryGrowth(), 60);
-      if (Math.random() < SHINY_RATE) baby.shiny = Math.random() < .5 ? 'gold' : 'white';
+      if (Math.random() < shinyRate(sp.id)) baby.shiny = Math.random() < .5 ? 'gold' : 'white';
       dexSee(sp.id, baby.shiny); state.stats.born++; born.push(baby);
     }
   }
