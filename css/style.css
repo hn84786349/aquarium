@@ -63,7 +63,10 @@ body.big .pill{font-size:19px}
 .dex[data-act]{cursor:pointer}
 .dex.shinyView{border-color:#ffd860;box-shadow:0 0 10px rgba(255,216,96,.35)}
 .dexMini{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0}
-.dexMini span{position:relative;background:var(--panel2);border-radius:8px;padding:2px}
+.dexMini span{position:relative;background:var(--panel2);border-radius:8px;padding:2px;cursor:pointer}
+/* 從系列跳到商店時，那隻魚的購買卡片用金色框框起來並閃一閃 */
+.card.focus{box-shadow:0 0 0 3px #ffd84a,0 0 18px 4px rgba(255,216,74,.55);animation:focusPulse 1s ease-in-out 3}
+@keyframes focusPulse{50%{box-shadow:0 0 0 3px #fff2a8,0 0 28px 8px rgba(255,216,74,.8)}}
 .dexMini img{width:46px;height:28px;display:block}
 .dexMini span.unk img{filter:brightness(0) opacity(.4)}
 .dexMini i{position:absolute;top:-4px;right:-2px;font-style:normal;font-size:12px}
