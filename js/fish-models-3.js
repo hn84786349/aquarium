@@ -1,6 +1,6 @@
 // 第 66～85 種魚的外觀設定（fish-models-3.js）
 // 用同一套「夢幻魚模板」組出來：每種魚換配色、體型、花紋和點綴，品質一致又各有特色
-// 參數：c 身體三色、fin 鰭與尾的顏色、glow 光暈色、shape 體型、tail 尾型、long 長鰭、pattern 花紋、acc 點綴（可多個）
+// 參數：c 身體三色、fin 鰭與尾的顏色、glow 光暈色、shape 體型、tail 尾型、long 長鰭、pattern 花紋、acc 點綴（可多個，第 101 種起多了 snow 雪花、hearts 愛心）
 function dreamModel(o) {
   const seed = o.seed, [top, mid, belly] = o.c, fin = o.fin, P = o.pattern, A = o.acc || [];
   const tall = o.shape === 'angel', round = o.shape === 'round';
@@ -44,6 +44,8 @@ function dreamModel(o) {
       if (A.includes('antenna')) { const bx = L * 1.15, by = -Hh * 1.5 + Math.sin(T * 2 + ph) * s * .04; c.strokeStyle = 'rgba(255,255,255,0.7)'; c.lineWidth = Math.max(1, s * .02); c.beginPath(); c.moveTo(L * .55, -Hh * .8); c.quadraticCurveTo(L * .9, -Hh * 1.8, bx, by); c.stroke(); halo(c, bx, by, s * .3, o.orb || '#fff0b0', .8); }
       if (A.includes('twinkle')) { twinkle(c, L * .2, -Hh * .45, s * .09, ph, '#ffffff'); twinkle(c, -L * .4, Hh * .2, s * .07, ph + 2, '#ffffff'); }
       if (A.includes('sparkle')) sparkles(c, s, f, o.spark || '#ffffff', 4);
+      if (A.includes('snow')) for (let i = 0; i < 3; i++) { const q = (T * .22 + i / 3 + ph) % 1; c.globalAlpha = Math.sin(q * Math.PI) * .9; snowflake(c, -L * .9 + i * L * .7, -Hh * 2.2 + q * Hh * 4.4, s * .07, T + i); c.globalAlpha = 1; }
+      if (A.includes('hearts')) for (let i = 0; i < 2; i++) { const q = (T * .35 + i / 2 + ph) % 1; c.globalAlpha = (1 - q) * .85; c.fillStyle = o.heart || '#ff9ac0'; heartShape(c, L * (.1 - i * .4) + Math.sin(T * 2 + i) * s * .08, -Hh * 1.2 - q * s * .9, s * (.05 + q * .03)); c.globalAlpha = 1; }
     },
   };
 }
@@ -70,3 +72,14 @@ Object.assign(MODELS, {
   empress:       dreamModel({ seed: 551, c: ['#fff0d8', '#ffffff', '#fff8f0'], fin: ['#fff0b0', '#ffc8d8', '#e0c0ff', '#ffffff'], glow: '#ffe0a0', sheen: ['rgba(255,210,120,0.55)', 'rgba(255,180,210,0.3)', 'rgba(210,180,255,0.5)'], pattern: 'flecks', pc: 'rgba(255,215,110,0.8)', long: true, acc: ['ribbons', 'crown', 'sparkle'], rib: ['#ffd870', '#ff9ac8', '#c8a0ff'], spark: '#fff4c0' }),
 });
 for (const id in MODELS) MODELS[id].id = id;
+
+// 小雪花：三條交叉的線，慢慢轉
+function snowflake(c, x, y, r, rot) {
+  c.save(); c.translate(x, y); c.rotate(rot); c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = Math.max(1, r * .22); c.beginPath();
+  for (let k = 0; k < 3; k++) { const a = k * Math.PI / 3; c.moveTo(-Math.cos(a) * r, -Math.sin(a) * r); c.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+  c.stroke(); c.restore();
+}
+// 小愛心
+function heartShape(c, x, y, r) {
+  c.beginPath(); c.moveTo(x, y + r * .9); c.bezierCurveTo(x - r * 1.4, y - r * .1, x - r * .6, y - r * 1.1, x, y - r * .35); c.bezierCurveTo(x + r * .6, y - r * 1.1, x + r * 1.4, y - r * .1, x, y + r * .9); c.fill();
+}
