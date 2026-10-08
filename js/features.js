@@ -16,7 +16,7 @@ function grant(coins, stars, title) {
   for (let i = 0; i < 10; i++) particles.push({ x: W / 2 + rand(-120, 120), y: H * .45 + rand(-40, 40), vy: -rand(20, 60), life: 1.5, icon: i % 2 ? '✨' : '⭐' });
 }
 // 圖鑑收集獎勵
-const DEX_GOALS = [[10, 10], [20, 30], [30, 80], [40, 150], [50, 300], [60, 600], [75, 1000], [90, 1500], [100, 2000], [SPECIES.length + STARFISH.length, 3000]];
+const DEX_GOALS = [[10, 10], [20, 30], [30, 80], [40, 150], [50, 300], [60, 600], [75, 1000], [90, 1500], [100, 2000], [120, 2500], [SPECIES.length + STARFISH.length, 3500]];
 function checkDex() {
   const n = Object.keys(state.dex.seen).length;
   for (const [goal, st] of DEX_GOALS) if (n >= goal && !state.dex.claimed.includes(goal)) { state.dex.claimed.push(goal); grant(0, st, `📖 圖鑑收集 ${goal} 種！`); }
