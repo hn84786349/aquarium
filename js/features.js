@@ -113,7 +113,7 @@ function claimGift() {
   grant(rewardCoins(600 * k), rewardStars() * (d.streak % 7 === 0 ? 3 : 1), `🎁 每日禮物（連續 ${d.streak} 天）`);
   updateGiftDot();
 }
-const updateGiftDot = () => $('#giftBtn').classList.toggle('dot', !!state.daily && !state.daily.gift);
+const updateGiftDot = () => $('#giftBtn').classList.toggle('dot', !!state.daily && !state.daily.gift || !!state.wish && !state.wish.opened);
 // 圖鑑裡點魚可以切換外觀：一般 → 金色 → 白色 → 一般（不存檔，只是看看）
 const DEX_VIEW = {}, DEX_KINDS = ['', 'gold', 'white'];
 function dexCard(sp) {
@@ -151,6 +151,11 @@ function renderCollect() {
     const d = state.daily;
     h += `<div class="card gift ${d.gift ? '' : 'sel'}"><div class="ico">🎁</div><div class="info"><b>今日禮物</b><small>${d.gift ? `今天已經領過了，明天再來喔！（已連續 ${d.streak} 天）` : `連續天數越多禮物越大，每連續 7 天有 3 倍星星！（目前連續 ${d.streak || 0} 天）`}</small></div>
       ${d.gift ? '<button disabled>已領取</button>' : '<button class="on" data-act="claimGift">領取</button>'}</div>`;
+    const w = state.wish, W0 = w && WISHES[w.id];
+    if (w) h += `<div class="card ${w.done && w.opened ? 'sel' : ''}"><div class="ico">🍾</div><div class="info"><b>今日漂流瓶${w.opened ? `：${W0.name(w.n)}` : ''}</b>
+      <small>${!w.opened ? '今天的漂流瓶正在水面上漂，點它打開看看！找不到的話也可以按右邊直接撈起來。' : w.done ? '✅ 心願完成了！明天還會有新的漂流瓶喔' : `「${W0.note}」　進度 ${w.id === 'earn' ? `${fmt(w.p)} / ${fmt(w.n)}` : `${w.p} / ${w.n}`}`}　獎勵 💰${fmt(wishCoins())} ⭐${fmt(wishStars())}</small>
+      ${w.opened ? `<div class="bar"><i style="width:${w.p / w.n * 100}%;background:${w.done ? 'var(--good)' : '#ff9ac0'}"></i></div>` : ''}</div>
+      ${w.opened ? '' : '<button class="on" data-act="openBottle">撈起來</button>'}</div>`;
     h += `<h4>📅 今日任務（每天更新，完成自動得到獎勵）</h4>`;
     for (const t of d.tasks) {
       const T0 = TASKS[t.id];

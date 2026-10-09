@@ -32,7 +32,7 @@ function frame(now) {
   }
   secT += dt;
   if (secT > 1) {
-    secT = 0; checkAch(); checkSeries(); updatePopDot(); potionTick(); updateLite();
+    secT = 0; checkAch(); checkSeries(); updatePopDot(); potionTick(); updateLite(); wishTick();
     if (state.daily.date !== todayStr()) { newDay(); updateEvent(); }
   }
   if (saveT > 5) { saveT = 0; save(); }
@@ -71,7 +71,7 @@ function offlineBreed(sec) {
       dexSee(sp.id, baby.shiny); state.stats.born++; born.push(baby);
     }
   }
-  if (born.length) taskProg('breed', born.length);
+  if (born.length) { taskProg('breed', born.length); wishProg('breed', born.length); }
   return born;
 }
 function checkOffline() {

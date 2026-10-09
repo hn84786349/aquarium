@@ -246,6 +246,7 @@ function render() {
   }
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   // 戳泡泡時畫面只留泡泡：寶物、魚、訪客、蝸牛和飛向左上角的金幣都先不畫（背後一樣照常運作）
+  drawMeteorBack();
   if (!POP.on) for (const t of state.treasures) {
     const y = t.y + (t.landed ? Math.sin(T * 2 + t.bob) * 1.5 : 0);
     ctx.globalAlpha = t.age > 110 ? (120 - t.age) / 10 : 1;
@@ -262,6 +263,7 @@ function render() {
   if (!POP.on) for (let i = 0; i < snailCount(); i++) {
     const sn = snails[i]; drawSnail(ctx, sn.x, FLOOR + 34 + i * 6, 11 + Math.min(3, state.snailLv) * 3, sn.dir, sn.moving);
   }
+  drawMeteors(); drawBottle();
   if (state.feederLv > 0 && !state.feederOff) emoji(ctx, '🤖', W - 30, 26, 26);
   if (!POP.on) for (const f of coinFx) {
     if (f.t < 0) continue;
@@ -321,7 +323,7 @@ function popAt(p) {
   return false;
 }
 function endPop() {
-  POP.on = false; POP.list = []; state.stats.popBest = Math.max(state.stats.popBest || 0, POP.n); updatePopDot(); save();
+  POP.on = false; POP.list = []; wishProg('pop'); state.stats.popBest = Math.max(state.stats.popBest || 0, POP.n); updatePopDot(); save();
   ask(`🫧 時間到！\n\n戳破了 ${POP.n} 顆泡泡\n獲得 💰${fmt(POP.coins)}${POP.stars ? `　⭐${POP.stars}` : ''}\n\n10 分鐘後可以再玩一次喔！`, '好', null);
 }
 function drawPop() {

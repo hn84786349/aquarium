@@ -37,7 +37,7 @@ let followPt = { x: 0, y: 0, t: 0 };
 function petFish(f) {
   f.spinT = .8; for (let i = 0; i < 5; i++) particles.push({ x: f.x + rand(-15, 15), y: f.y + rand(-10, 5), vy: -rand(20, 45), life: 1.2, icon: '💗' });
   const now = performance.now(); if (f.petAt && now - f.petAt < 3000) return; // 同一隻魚 3 秒內重複摸不加親密度
-  f.petAt = now; const before = hearts(f); f.love = Math.min(100, (f.love || 0) + 2);
+  f.petAt = now; const before = hearts(f); f.love = Math.min(100, (f.love || 0) + 2); wishProg('pet');
   if (hearts(f) > before) { floatText(f.x, f.y - 28, `${f.name}更喜歡你了！${'❤️'.repeat(hearts(f))}`, '#ffb3d9'); if (hearts(f) === 3) toast(`💕 ${f.name}有 3 顆心了，在「查看」模式按住水族箱，牠會游過來找你！`); }
 }
 function updateFish(f, dt) {
@@ -65,7 +65,7 @@ function updateFish(f, dt) {
   if (target && Math.hypot(target.x - f.x, target.y - f.y) < s * .8 + 8) {
     const fd = FD[target.food];
     f.hunger = Math.min(100, f.hunger + fd.sat); f.foodMult = fd.grow; f.love = Math.min(100, (f.love || 0) + .5);
-    pellets.splice(pellets.indexOf(target), 1);
+    pellets.splice(pellets.indexOf(target), 1); wishProg('eat');
     for (let i = 0; i < 3; i++) bubbles.push({ x: f.x + rand(-5, 5), y: f.y, r: rand(1.5, 3), vy: rand(30, 60) });
   }
   if (f.hunger > 0) {
@@ -110,7 +110,7 @@ function updateBreeding(dt) {
         }
         dexSee(sp.id, baby.shiny); state.stats.born++;
       }
-      toast(n > 1 ? `🎉 ${sp.name}一起生了 ${n} 隻小魚！` : `🎉 ${sp.name}生了小魚！`); taskProg('breed', n);
+      toast(n > 1 ? `🎉 ${sp.name}一起生了 ${n} 隻小魚！` : `🎉 ${sp.name}生了小魚！`); taskProg('breed', n); wishProg('breed', n);
       if (shinies.length) setTimeout(() => ask(`✨ 太幸運了！\n生出了稀有的「${shinies.map(b => SHINY_NAME[b.shiny] + sp.name).join('」、「')}」！\n\n稀有色的魚寶物價值 3 倍，賣出和放生也是 3 倍。`, '好棒！', null), 400);
       if (menuOpen && tab === 'mine') renderTab();
     }
@@ -120,7 +120,7 @@ function updateBreeding(dt) {
 function update(dt) {
   T += dt;
   updatePop(dt); if (followPt.t > 0) followPt.t = dragging && viewMode ? 2.5 : followPt.t - dt; // 手指按住不放時一直跟著
-  updateVisitor(dt);
+  updateVisitor(dt); updateMeteor(dt); updateBottle(dt);
   for (const f of state.fish) updateFish(f, dt);
   for (const f of starFish) updateStarFish(f, dt);
   for (let i = releasing.length - 1; i >= 0; i--) {

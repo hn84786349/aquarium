@@ -9,7 +9,7 @@ function collectTreasure(t) {
   const i = state.treasures.indexOf(t); if (i < 0) return;
   state.treasures.splice(i, 1);
   const v = Math.round(TREASURE[t.type].value * (t.mult || 1) * B.value);
-  state.coins += v; state.earned += v; taskProg('collect');
+  state.coins += v; state.earned += v; taskProg('collect'); wishProg('collect');
   if (POP.on) return; // 戳泡泡時蝸牛在背後撿寶物，不顯示金幣特效
   // 寶物變成金幣：價值越高，金幣越多、顏色從銅 → 銀 → 金
   const tier = v < 40 ? 0 : v < 400 ? 1 : 2, n = [2, 3, 5][tier];
@@ -52,6 +52,8 @@ canvas.addEventListener('pointerdown', e => {
   // 飼料選單打開時，點水族箱只是把選單關掉
   if (!$('#foodPop').hidden) { toggleFood(false); dragging = false; return; }
   if (POP.on) { popAt(p); return; }
+  if (bottleAt(p)) { openBottle(); return; }
+  if (tapMeteor(p)) return;
   if (visitorAt(p)) { tapVisitor(); return; }
   const t = treasureAt(p); if (t) { collectTreasure(t); return; }
   // 查看模式：點魚看狀態、點造景升級，不會投放飼料
